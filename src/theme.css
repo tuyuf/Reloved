@@ -1,0 +1,22 @@
+:root {
+  --bg: #ffffff;
+  --text: #111111;
+  --card: #f8f8f8;
+}
+
+.dark {
+  --bg: #0e0e0e;
+  --text: #f5f5f5;
+  --card: #1b1b1b;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  transition: 0.25s ease;
+}
+
+/* Common UI */
+.card {
+  background: var(--card);
+}

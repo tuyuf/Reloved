@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* FONT FAMILY & BODY BASE */
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-[#f4f4f4] text-[#111111];
+    font-family: "Montserrat", system-ui, -apple-system, BlinkMacSystemFont,
+      "Segoe UI", sans-serif;
+  }
+}
+
+/* CONTAINER UTAMA (supaya layout kayak desain) */
+@layer components {
+  .reloved-page {
+    @apply max-w-5xl mx-auto px-4 md:px-8;
+  }
+
+  .reloved-section-title {
+    @apply text-[10px] tracking-[0.35em] uppercase text-[#555] mb-2;
+  }
+
+  .reloved-heading-xl {
+    @apply text-4xl md:text-5xl font-semibold tracking-[0.25em] uppercase leading-tight;
+  }
+
+  .reloved-link {
+    @apply text-xs tracking-[0.25em] uppercase underline-offset-4 decoration-black/30 hover:decoration-black;
+  }
+}
