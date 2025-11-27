@@ -1,4 +1,3 @@
-// src/admin/products/AdminProducts.jsx
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useNavigate } from "react-router-dom";
@@ -30,7 +29,6 @@ export default function AdminProducts() {
     } else {
       setProducts(data || []);
     }
-
     setLoading(false);
   }
 
@@ -52,98 +50,84 @@ export default function AdminProducts() {
   }
 
   return (
-    <div className="reloved-page space-y-8">
+    <div className="space-y-8 pb-20">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-end justify-between border-b border-black/5 pb-6">
         <div>
-          <h1 className="text-xl tracking-[0.35em] uppercase">Products</h1>
-          <p className="text-xs text-black/50 mt-2">
-            Kelola daftar barang preloved yang tampil di ReLoved.
-          </p>
+          <h1 className="text-4xl font-serif text-[#111]">Products</h1>
+          <p className="text-sm text-gray-500 mt-1">Kelola inventaris toko Anda.</p>
         </div>
-
         <button
           onClick={() => navigate("/admin/products/add")}
-          className="px-6 h-10 rounded-full border border-black bg-black text-white text-xs tracking-[0.25em] uppercase hover:bg-white hover:text-black transition-colors"
+          className="bg-black text-white px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-gray-800 transition-all shadow-md"
         >
           + Add Product
         </button>
       </div>
 
-      {/* Table / cards */}
-      <div className="bg-white border border-black/5 rounded-[32px] p-6 shadow-sm">
+      {/* Table */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {loading ? (
-          <div className="py-10 text-center text-xs tracking-[0.2em] uppercase text-black/40">
-            Loading products…
-          </div>
+          <div className="p-20 text-center text-gray-400 italic font-serif">Loading inventory...</div>
         ) : products.length === 0 ? (
-          <div className="py-10 text-center text-xs tracking-[0.2em] uppercase text-black/40">
-            Belum ada produk. Tambahkan produk pertama.
-          </div>
+          <div className="p-20 text-center text-gray-400">Belum ada produk.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-[10px] tracking-[0.2em] uppercase text-black/50 border-b border-black/5">
-                  <th className="py-3 text-left">Product</th>
-                  <th className="py-3 text-left">Category</th>
-                  <th className="py-3 text-left">Condition</th>
-                  <th className="py-3 text-left">Price</th>
-                  <th className="py-3 text-left">Stock</th>
-                  <th className="py-3 text-left">Created</th>
-                  <th className="py-3 text-right">Actions</th>
+            <table className="w-full text-sm text-left">
+              <thead className="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-widest font-bold border-b border-gray-100">
+                <tr>
+                  <th className="px-6 py-4">Product</th>
+                  <th className="px-6 py-4">Category</th>
+                  <th className="px-6 py-4">Price</th>
+                  <th className="px-6 py-4">Stock</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-gray-50">
                 {products.map((p) => (
-                  <tr
-                    key={p.id}
-                    className="border-b border-black/5 last:border-none"
-                  >
-                    <td className="py-4">
+                  <tr key={p.id} className={`hover:bg-gray-50/50 transition-colors ${p.stock === 0 ? 'bg-red-50/30' : ''}`}>
+                    <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
-                        {p.image_url && (
-                          <img
-                            src={p.image_url}
-                            alt={p.name}
-                            className="w-14 h-16 object-cover rounded-md border border-black/5"
-                          />
-                        )}
+                        <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden shrink-0 border border-gray-200">
+                          {p.image_url && <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />}
+                        </div>
                         <div>
-                          <div className="uppercase tracking-[0.2em] text-[11px]">
-                            {p.name}
-                          </div>
-                          <div className="text-[10px] text-black/50 mt-1 line-clamp-1">
-                            {p.description}
-                          </div>
+                          <div className="font-medium text-gray-900 line-clamp-1">{p.name}</div>
+                          <div className="text-xs text-gray-400 mt-0.5 line-clamp-1 max-w-[200px]">{p.description}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="py-4 text-[11px]">
-                      {CATEGORY_LABEL[p.category] || p.category || "-"}
+                    <td className="px-6 py-4">
+                      <span className="inline-block px-2 py-1 rounded border border-gray-200 text-[10px] uppercase font-bold text-gray-500 bg-white">
+                        {CATEGORY_LABEL[p.category] || p.category}
+                      </span>
                     </td>
-                    <td className="py-4 text-[11px]">{p.condition || "-"}</td>
-                    <td className="py-4 text-[11px]">{formatPrice(p.price)}</td>
-                    <td className="py-4 text-[11px]">{p.stock ?? 0}</td>
-                    <td className="py-4 text-[11px]">
-                      {formatDate(p.created_at)}
+                    <td className="px-6 py-4 font-serif text-gray-900">{formatPrice(p.price)}</td>
+                    <td className="px-6 py-4">
+                      {p.stock === 0 ? (
+                        <span className="text-red-600 text-[10px] font-bold uppercase tracking-wider bg-red-100 px-2 py-1 rounded border border-red-200">
+                          Out of Stock
+                        </span>
+                      ) : (
+                        <span className={`text-xs font-bold ${p.stock < 5 ? 'text-orange-500' : 'text-gray-600'}`}>
+                          {p.stock} in stock
+                        </span>
+                      )}
                     </td>
-                    <td className="py-4">
+                    <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
                         <button
-                          onClick={() =>
-                            navigate(`/admin/products/edit/${p.id}`)
-                          }
-                          className="px-4 h-8 rounded-full border border-black/20 text-[10px] tracking-[0.2em] uppercase hover:bg-black hover:text-white transition-colors"
+                          onClick={() => navigate(`/admin/products/edit/${p.id}`)}
+                          className="text-xs font-medium text-gray-600 hover:text-black px-3 py-1.5 rounded hover:bg-gray-100 transition-colors"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => handleDelete(p.id)}
                           disabled={deletingId === p.id}
-                          className="px-4 h-8 rounded-full border border-black/10 text-[10px] tracking-[0.2em] uppercase text-black/60 hover:bg-black/5 disabled:opacity-40"
+                          className="text-xs font-medium text-red-500 hover:text-red-700 px-3 py-1.5 rounded hover:bg-red-50 transition-colors"
                         >
-                          {deletingId === p.id ? "Deleting…" : "Delete"}
+                          {deletingId === p.id ? "..." : "Delete"}
                         </button>
                       </div>
                     </td>

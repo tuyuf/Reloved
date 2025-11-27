@@ -3,11 +3,13 @@ import UserLayout from "./layouts/UserLayout";
 import AuthLayout from "./layouts/AuthLayout";
 
 import Home from "./pages/home/Home";
-import Collections from "./pages/collections/Collections";
+import Collections from "./pages/collections/Collections"; 
+import Orders from "./pages/orders/Orders"; 
 import ProductDetail from "./pages/product/ProductDetail";
 import Cart from "./pages/cart/Cart";
 import Checkout from "./pages/checkout/Checkout";
-import Profile from "./pages/profile/Profile";
+import History from "./pages/History/history"; 
+import Profile from "./pages/profile/Profile"; 
 
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
@@ -18,6 +20,7 @@ import AdminProducts from "./admin/products/AdminProducts";
 import AddProduct from "./admin/products/AddProduct";
 import EditProduct from "./admin/products/EditProduct";
 import AdminOrders from "./admin/orders/AdminOrders";
+import AdminOrderDetail from "./admin/orders/AdminOrderDetail"; // IMPORT HALAMAN BARU
 import VerifyPayment from "./admin/orders/VerifyPayment";
 
 const router = createBrowserRouter([
@@ -27,10 +30,12 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Home /> },
       { path: "collections", element: <Collections /> },
+      { path: "orders", element: <Orders /> },
+      { path: "history", element: <History /> },
+      { path: "profile", element: <Profile /> }, 
       { path: "product/:id", element: <ProductDetail /> },
       { path: "cart", element: <Cart /> },
       { path: "checkout", element: <Checkout /> },
-      { path: "profile", element: <Profile /> },
     ],
   },
   {
@@ -50,10 +55,10 @@ const router = createBrowserRouter([
       { path: "products/add", element: <AddProduct /> },
       { path: "products/edit/:id", element: <EditProduct /> },
       { path: "orders", element: <AdminOrders /> },
+      { path: "orders/:id", element: <AdminOrderDetail /> }, // RUTE BARU
       { path: "orders/verify/:id", element: <VerifyPayment /> },
     ],
   },
 ]);
-
 
 export default router;
