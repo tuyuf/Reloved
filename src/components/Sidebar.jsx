@@ -1,16 +1,54 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavLink, Link } from "react-router-dom";
 import { useUser } from "../context/UserContext";
 import { useCart } from "../context/CartContext";
+import { supabase } from "../lib/supabase";
 
 export default function Sidebar() {
   const { user } = useUser();
   const { cart } = useCart();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [historyCount, setHistoryCount] = useState(0);
 
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);
   };
+
+  // Mengambil jumlah history order (completed/cancelled) dari database
+  useEffect(() => {
+    if (!user) {
+      setHistoryCount(0);
+      return;
+    }
+
+    async function fetchHistoryCount() {
+      const { count, error } = await supabase
+        .from("orders")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .in("status", ["completed", "cancelled"]);
+
+      if (!error) {
+        setHistoryCount(count || 0);
+      }
+    }
+
+    fetchHistoryCount();
+    
+    // Opsional: Subscribe ke perubahan tabel orders untuk update realtime
+    const channel = supabase
+      .channel('history-count-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${user.id}` },
+        () => fetchHistoryCount()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   // Style baru untuk NavLink: 
   // Active = Putih, Shadow Halus, Teks Hitam
@@ -31,7 +69,7 @@ export default function Sidebar() {
       {/* TOGGLE BUTTON */}
       <button
         onClick={toggleSidebar}
-        className="absolute -right-3 top-12 w-6 h-6 bg-black text-white rounded-full flex items-center justify-center shadow-md hover:bg-gray-800 transition-transform duration-300 z-50 focus:outline-none"
+        className="absolute -right-4 top-12 w-8 h-8 bg-black text-white rounded-full flex items-center justify-center shadow-md hover:bg-gray-800 transition-transform duration-300 z-50 focus:outline-none"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-300 ${isCollapsed ? "rotate-0" : "rotate-180"}`}>
           <polyline points="9 18 15 12 9 6" />
@@ -106,15 +144,17 @@ export default function Sidebar() {
                 History
               </span>
             </div>
-            {/* Badge Angka seperti di gambar referensi */}
-            <span className={`text-xs font-medium bg-[#E5E5E0] px-2 py-0.5 rounded-md text-gray-600 transition-all ${isCollapsed ? "hidden" : "block"}`}>
-              6
-            </span>
+            {/* Badge Angka Real dari DB */}
+            {historyCount > 0 && (
+              <span className={`text-xs font-medium bg-[#E5E5E0] px-2 py-0.5 rounded-md text-gray-600 transition-all ${isCollapsed ? "hidden" : "block"}`}>
+                {historyCount}
+              </span>
+            )}
           </div>
         </NavLink>
       </nav>
 
-      {/* SOCIALS (Mirip 'FIND ME' di referensi) */}
+      {/* SOCIALS */}
       <div className={`mt-auto pt-10 transition-all duration-300 ${isCollapsed ? "hidden" : "block"}`}>
         <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Find Me</div>
         <div className="space-y-1">

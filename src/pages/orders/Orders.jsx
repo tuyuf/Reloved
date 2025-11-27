@@ -1,16 +1,27 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { formatPrice, formatDate } from "../../lib/format";
+import { useUser } from "../../context/UserContext"; // Import User Context
 
 export default function Orders() {
+  const { user } = useUser(); // Ambil data user
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
   async function loadOrders() {
     setLoading(true);
+
+    // Jika user belum login, set kosong dan stop
+    if (!user) {
+      setOrders([]);
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("orders")
       .select("*, order_items(products(name, image_url))")
+      .eq("user_id", user.id) // Filter HANYA pesanan milik user ini
       .in("status", ["pending", "paid", "processed", "shipped"])
       .order("created_at", { ascending: false });
 
@@ -18,7 +29,8 @@ export default function Orders() {
     setLoading(false);
   }
 
-  useEffect(() => { loadOrders(); }, []);
+  // Reload saat user berubah (login/logout)
+  useEffect(() => { loadOrders(); }, [user]);
 
   const handleReceived = async (id) => {
     if (!confirm("Konfirmasi pesanan sudah diterima?")) return;
@@ -46,7 +58,9 @@ export default function Orders() {
         <div className="py-20 text-center text-gray-400 font-serif italic">Memeriksa status...</div>
       ) : orders.length === 0 ? (
         <div className="py-32 text-center bg-white rounded-lg border border-dashed border-gray-200">
-          <p className="text-gray-400 font-serif text-lg italic">Tidak ada pesanan aktif.</p>
+          <p className="text-gray-400 font-serif text-lg italic">
+            {user ? "Tidak ada pesanan aktif." : "Silakan login untuk melihat pesanan Anda."}
+          </p>
         </div>
       ) : (
         <div className="space-y-6">

@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from "react";
-// Pastikan import tanpa ekstensi agar aman
 import { supabase } from "../../lib/supabase";
 import ProductCard from "../../components/ProductCard";
 import { useOutletContext } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function Home() {
   const { toggleCart } = useOutletContext();
@@ -10,8 +10,6 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
-  
-  // Ref untuk input search
   const searchInputRef = useRef(null);
 
   const categories = [
@@ -30,7 +28,7 @@ export default function Home() {
         .select("*")
         .gt('stock', 0)
         .order("created_at", { ascending: false })
-        .limit(8); // MEMBATASI HANYA 8 PRODUK
+        .limit(8);
 
       if (activeCategory !== "All") query = query.eq("category", activeCategory);
       if (search) query = query.ilike('name', `%${search}%`);
@@ -42,18 +40,40 @@ export default function Home() {
     load();
   }, [activeCategory, search]);
 
+  // Animasi Container Utama (Stagger Effect)
+  const gridContainerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1, // Jeda 0.1 detik antar item
+        delayChildren: 0.2,   // Tunggu 0.2 detik sebelum mulai
+      }
+    }
+  };
+
   return (
     <div className="w-full max-w-[1200px] mx-auto pb-20 px-4 sm:px-6">
       
       {/* 1. HERO SECTION */}
-      <div className="text-center py-16 md:py-24 space-y-6">
-        <div className="inline-block px-4 py-1.5 rounded-lg bg-[#EAE8E6] text-[10px] uppercase tracking-widest font-medium text-gray-600 shadow-sm">
+      <motion.div 
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="text-center py-16 md:py-24 space-y-6"
+      >
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
+          className="inline-block px-4 py-1.5 rounded-lg bg-[#EAE8E6] text-[10px] uppercase tracking-widest font-medium text-gray-600 shadow-sm"
+        >
           From the store of ReLoved
-        </div>
+        </motion.div>
         
         <h1 className="text-5xl md:text-7xl leading-[1.1] text-[#111]">
           Curated fashion for the <br />
-          <span className="italic font-serif font-normal">conscious</span> style.
+          <span className="italic font-serif font-normal text-black/80">conscious</span> style.
         </h1>
 
         {/* Search Bar */}
@@ -79,60 +99,73 @@ export default function Home() {
             </button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* 2. FILTERS (Updated Style: Rounded-lg & Colors) */}
-      <div className="flex flex-wrap gap-2 justify-center mb-16">
+      {/* 2. FILTERS */}
+      <motion.div 
+         initial={{ opacity: 0, y: 20 }} 
+         animate={{ opacity: 1, y: 0 }} 
+         transition={{ delay: 0.4, duration: 0.5 }}
+         className="flex flex-wrap gap-2 justify-center mb-16"
+      >
         {categories.map((cat) => (
           <button
             key={cat.value}
             onClick={() => setActiveCategory(cat.value)}
-            className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+            className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 ${
               activeCategory === cat.value
-                ? "bg-white text-black shadow-sm ring-1 ring-black/5" // Active: Putih
-                : "bg-[#EAE8E6] text-gray-600 hover:bg-[#e0e0df]"     // Inactive: Cream Grey
+                ? "bg-white text-black shadow-sm ring-1 ring-black/5 scale-105" 
+                : "bg-[#EAE8E6] text-gray-600 hover:bg-[#e0e0df] hover:text-black"
             }`}
           >
             {cat.label}
           </button>
         ))}
-      </div>
+      </motion.div>
 
       {/* 3. PRODUCT GRID */}
       {loading ? (
-        <div className="py-32 text-center text-gray-400 italic font-serif text-xl animate-pulse">Loading treasures...</div>
+        <div className="py-32 text-center text-gray-400 italic font-serif text-xl flex flex-col items-center gap-4">
+           <div className="w-10 h-10 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
+           <span className="animate-pulse">Loading treasures...</span>
+        </div>
       ) : products.length === 0 ? (
-        <div className="py-32 text-center bg-white rounded-xl border border-dashed border-gray-200 mx-4">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="py-32 text-center bg-white rounded-xl border border-dashed border-gray-200 mx-4"
+        >
           <p className="text-gray-400 mb-2 text-lg">No products found.</p>
           <button onClick={() => {setActiveCategory("All"); setSearch("")}} className="text-sm text-black underline underline-offset-4 hover:text-gray-600">Clear filters</button>
-        </div>
+        </motion.div>
       ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10">
-            {products.map((p) => (
-              <ProductCard key={p.id} product={p} />
+        <motion.div 
+          variants={gridContainerVariants}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10"
+        >
+          <AnimatePresence>
+            {products.map((p, idx) => (
+              <ProductCard key={p.id} product={p} index={idx} />
             ))}
-          </div>
-
-          {/* TOMBOL LIHAT SELENGKAPNYA */}
-          <div className="mt-16 flex justify-center">
-            <a 
-              href="/collections"
-              className="px-8 py-4 bg-white border border-gray-200 text-gray-800 rounded-full text-xs font-bold uppercase tracking-widest hover:border-black hover:text-black transition-all shadow-sm hover:shadow-md"
-            >
-              <span className="italic font-serif font-normal">See All Collections</span>
-            </a>
-          </div>
-        </>
+          </AnimatePresence>
+        </motion.div>
       )}
-
+      
       {/* 4. FOOTER PROMO */}
-      <div className="mt-32 py-20 text-center border-t border-black/5">
-        <h2 className="text-4xl md:text-5xl mb-6 font-serif">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true }}
+        transition={{ duration: 1 }}
+        className="mt-32 py-20 text-center border-t border-black/5"
+      >
+        <h2 className="text-4xl md:text-5xl mb-6 font-serif text-[#111]">
           Help you find <br />
-          <span className="italic font-normal">timeless</span> pieces.
+          <span className="italic font-normal text-gray-500">timeless</span> pieces.
         </h2>
-      </div>
+      </motion.div>
     </div>
   );
 }

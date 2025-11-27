@@ -1,16 +1,28 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { formatPrice, formatDate } from "../../lib/format";
+import { useUser } from "../../context/UserContext"; // Import User Context
 
 export default function History() {
+  const { user } = useUser(); // Ambil data user
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
+      setLoading(true);
+
+      // Jika user belum login, set kosong dan stop
+      if (!user) {
+        setOrders([]);
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
          .from("orders")
          .select("*, order_items(products(name, image_url))")
+         .eq("user_id", user.id) // Filter HANYA riwayat milik user ini
          .in("status", ["completed", "cancelled"])
          .order("created_at", { ascending: false });
          
@@ -20,7 +32,7 @@ export default function History() {
       setLoading(false);
     }
     load();
-  }, []);
+  }, [user]); // Reload saat user berubah
 
   return (
     <div className="max-w-4xl mx-auto pb-20">
@@ -29,15 +41,19 @@ export default function History() {
           <h1 className="text-4xl font-serif text-[#111] mb-2">History</h1>
           <p className="text-gray-500">Riwayat transaksi Anda yang sudah selesai.</p>
         </div>
-        <div className="text-xs font-bold bg-gray-100 px-3 py-1 rounded-full text-gray-500">
-          Total: {orders.length}
-        </div>
+        {user && (
+          <div className="text-xs font-bold bg-gray-100 px-3 py-1 rounded-full text-gray-500">
+            Total: {orders.length}
+          </div>
+        )}
       </div>
 
       {loading ? (
         <div className="py-20 text-center text-gray-400 animate-pulse">Memuat riwayat...</div>
       ) : orders.length === 0 ? (
-        <div className="py-20 text-center text-gray-400 italic">Belum ada riwayat pesanan.</div>
+        <div className="py-20 text-center text-gray-400 italic">
+           {user ? "Belum ada riwayat pesanan." : "Silakan login untuk melihat riwayat Anda."}
+        </div>
       ) : (
         <div className="space-y-4">
            {orders.map((order) => (
