@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { NavLink, Link } from "react-router-dom";
-import { useUser } from "../context/UserContext";
-import { useCart } from "../context/CartContext";
-import { supabase } from "../lib/supabase";
+import { useUser } from "/src/context/UserContext"; // Path absolut
+import { useCart } from "/src/context/CartContext"; // Path absolut
+import { supabase } from "/src/lib/supabase";       // Path absolut
 
 export default function Sidebar() {
   const { user } = useUser();
@@ -14,7 +14,6 @@ export default function Sidebar() {
     setIsCollapsed(!isCollapsed);
   };
 
-  // Mengambil jumlah history order (completed/cancelled) dari database
   useEffect(() => {
     if (!user) {
       setHistoryCount(0);
@@ -35,9 +34,8 @@ export default function Sidebar() {
 
     fetchHistoryCount();
     
-    // Opsional: Subscribe ke perubahan tabel orders untuk update realtime
     const channel = supabase
-      .channel('history-count-changes')
+      .channel('history-count-sidebar')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${user.id}` },
@@ -50,9 +48,6 @@ export default function Sidebar() {
     };
   }, [user]);
 
-  // Style baru untuk NavLink: 
-  // Active = Putih, Shadow Halus, Teks Hitam
-  // Inactive = Transparan, Teks Abu-abu
   const navClass = ({ isActive }) =>
     `flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-all duration-200 group relative font-medium ${
       isActive 
@@ -60,16 +55,19 @@ export default function Sidebar() {
         : "text-gray-500 hover:text-black hover:bg-black/5"
     }`;
 
+  // Helper untuk mendapatkan avatar
+  const avatarUrl = user?.user_metadata?.avatar_url;
+  const firstName = user?.user_metadata?.first_name || (user?.email ? user.email.split('@')[0] : 'Guest');
+
   return (
     <aside 
       className={`hidden md:flex flex-col h-screen sticky top-0 transition-all duration-300 ease-[cubic-bezier(0.4, 0, 0.2, 1)] relative ${
         isCollapsed ? "w-20 px-3 py-6" : "w-72 p-8"
-      } bg-[#F3F3F1]`} // Background disamakan dengan body
+      } bg-[#F3F3F1]`} 
     >
-      {/* TOGGLE BUTTON */}
       <button
         onClick={toggleSidebar}
-        className="absolute -right-4 top-12 w-8 h-8 bg-black text-white rounded-full flex items-center justify-center shadow-md hover:bg-gray-800 transition-transform duration-300 z-50 focus:outline-none"
+        className="absolute -right-3 top-12 w-6 h-6 bg-black text-white rounded-full flex items-center justify-center shadow-md hover:bg-gray-800 transition-transform duration-300 z-50 focus:outline-none"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-300 ${isCollapsed ? "rotate-0" : "rotate-180"}`}>
           <polyline points="9 18 15 12 9 6" />
@@ -81,21 +79,23 @@ export default function Sidebar() {
         to="/profile" 
         className={`flex items-center gap-4 mb-12 transition-all duration-300 group ${isCollapsed ? "justify-center" : ""}`}
       >
-        <div className="w-10 h-10 min-w-[40px] rounded-lg bg-gray-200 overflow-hidden shadow-sm shrink-0 relative group-hover:ring-2 ring-white transition-all">
-          {user?.email ? (
+        <div className="w-10 h-10 min-w-[40px] rounded-lg bg-white border border-gray-200 overflow-hidden shadow-sm shrink-0 relative group-hover:ring-2 ring-black/10 transition-all">
+          {avatarUrl ? (
+             <img src={avatarUrl} alt="profile" className="w-full h-full object-cover" />
+          ) : user?.email ? (
              <div className="w-full h-full flex items-center justify-center bg-black text-white font-bold text-xs uppercase">
                 {user.email[0]}
              </div>
           ) : (
-             <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="profile" className="w-full h-full object-cover" />
+             <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="guest" className="w-full h-full object-cover" />
           )}
         </div>
         
         <div className={`flex flex-col transition-all duration-300 overflow-hidden ${isCollapsed ? "w-0 opacity-0 ml-0" : "w-auto opacity-100"}`}>
-          <h3 className="font-bold text-sm whitespace-nowrap text-[#111] leading-tight">
-            {user ? user.email.split('@')[0] : 'Guest User'}
+          <h3 className="font-bold text-sm whitespace-nowrap text-[#111] leading-tight capitalize">
+            {firstName}
           </h3>
-          <p className="text-[11px] text-gray-500 truncate">Writer & Digital Creator</p>
+          <p className="text-[11px] text-gray-500 truncate">Member</p>
         </div>
       </Link>
 
@@ -144,7 +144,6 @@ export default function Sidebar() {
                 History
               </span>
             </div>
-            {/* Badge Angka Real dari DB */}
             {historyCount > 0 && (
               <span className={`text-xs font-medium bg-[#E5E5E0] px-2 py-0.5 rounded-md text-gray-600 transition-all ${isCollapsed ? "hidden" : "block"}`}>
                 {historyCount}
@@ -153,27 +152,6 @@ export default function Sidebar() {
           </div>
         </NavLink>
       </nav>
-
-      {/* SOCIALS */}
-      <div className={`mt-auto pt-10 transition-all duration-300 ${isCollapsed ? "hidden" : "block"}`}>
-        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">Find Me</div>
-        <div className="space-y-1">
-          <a href="#" className="flex items-center justify-between px-2 py-2 text-xs text-gray-500 hover:text-black group transition-colors rounded-md hover:bg-black/5">
-            <div className="flex items-center gap-3">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
-              <span>Instagram</span>
-            </div>
-            <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px]">↗</span>
-          </a>
-          <a href="#" className="flex items-center justify-between px-2 py-2 text-xs text-gray-500 hover:text-black group transition-colors rounded-md hover:bg-black/5">
-            <div className="flex items-center gap-3">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"/><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"/></svg>
-              <span>YouTube</span>
-            </div>
-            <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px]">↗</span>
-          </a>
-        </div>
-      </div>
     </aside>
   );
 }

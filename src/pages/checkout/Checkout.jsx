@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCart } from "../../context/CartContext";
 import { useUser } from "../../context/UserContext"; 
 import { useNavigate } from "react-router-dom";
@@ -6,14 +6,13 @@ import { formatPrice } from "../../lib/format";
 import { supabase } from "../../lib/supabase";
 
 export default function Checkout() {
-  const { cart, setCart } = useCart();
+  // PERBAIKAN: Ambil 'clearCart' dari context, bukan 'setCart'
+  const { cart, clearCart } = useCart();
   const { user } = useUser();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [isOrderPlaced, setIsOrderPlaced] = useState(false);
   const [savedOrderId, setSavedOrderId] = useState(null);
-  
-  // State baru untuk menyimpan total akhir agar tidak hilang saat cart dikosongkan
   const [finalTotal, setFinalTotal] = useState(0);
   
   const subtotal = cart.reduce((s, item) => s + (Number(item.price) * (item.quantity || 1)), 0);
@@ -24,6 +23,19 @@ export default function Checkout() {
     firstName: "", lastName: "", address: "", city: "", phone: "", email: ""
   });
 
+  useEffect(() => {
+    if (user) {
+      setForm({
+        firstName: user.user_metadata?.first_name || "",
+        lastName: user.user_metadata?.last_name || "",
+        address: user.user_metadata?.address || "",
+        city: user.user_metadata?.city || "",
+        phone: user.user_metadata?.phone || "",
+        email: user.email || ""
+      });
+    }
+  }, [user]);
+
   const handleChange = (e) => setForm({...form, [e.target.name]: e.target.value});
 
   const handlePlaceOrder = async () => {
@@ -33,7 +45,7 @@ export default function Checkout() {
     setLoading(true);
 
     try {
-      // 1. VALIDASI STOK PER SIZE
+      // 1. VALIDASI STOK PER SIZE (Sama seperti sebelumnya)
       const updatesMap = new Map();
 
       for (const item of cart) {
@@ -84,13 +96,13 @@ export default function Checkout() {
          }
       }
 
-      // 2. BUAT ORDER UTAMA
+      // 2. BUAT ORDER
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
           user_id: user?.id || null,
           customer_name: `${form.firstName} ${form.lastName}`,
-          customer_email: form.email || user?.email, 
+          customer_email: form.email, 
           customer_phone: form.phone,
           shipping_address: `${form.address}, ${form.city}`,
           total_price: total,
@@ -113,7 +125,7 @@ export default function Checkout() {
       const { error: itemsError } = await supabase.from('order_items').insert(itemsToInsert);
       if (itemsError) throw itemsError;
 
-      // 4. EKSEKUSI UPDATE STOK
+      // 4. UPDATE STOK
       for (const [productId, updateData] of updatesMap.entries()) {
          const { newVariants, newTotalStock } = updateData;
          const payload = { stock: newTotalStock };
@@ -123,9 +135,12 @@ export default function Checkout() {
 
       // SUKSES
       setSavedOrderId(orderData.id);
-      setFinalTotal(total); // SIMPAN TOTAL SEBELUM CARTDIHAPUS
+      setFinalTotal(total);
       setIsOrderPlaced(true);
-      setCart([]); 
+      
+      // PERBAIKAN UTAMA: Gunakan clearCart() agar data di DB juga terhapus
+      await clearCart(); 
+      
       window.scrollTo({ top: 0, behavior: "smooth" });
 
     } catch (err) {
@@ -136,6 +151,7 @@ export default function Checkout() {
     }
   };
 
+  // UI (Tidak berubah)
   if (cart.length === 0 && !isOrderPlaced) {
     return (
       <div className="w-full max-w-[1200px] mx-auto pb-20 px-4 sm:px-6 pt-32 text-center">
@@ -161,7 +177,6 @@ export default function Checkout() {
           <div className="border-t border-b border-gray-100 py-6 space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-xs uppercase tracking-widest text-gray-400 font-bold">Total Tagihan</span>
-              {/* GUNAKAN FINAL TOTAL DISINI */}
               <span className="text-2xl font-serif text-[#111]">{formatPrice(finalTotal)}</span>
             </div>
             <div className="bg-[#F9F9F9] p-5 rounded-2xl text-left space-y-1 border border-gray-100">
@@ -191,41 +206,44 @@ export default function Checkout() {
             {user && (
                <div className="text-xs text-green-700 bg-green-50 border border-green-100 p-4 rounded-xl flex items-center gap-3">
                   <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                  Logged in as <span className="font-bold">{user.email}</span>. Order will be saved to your history.
+                  <div>
+                    Logged in as <span className="font-bold">{user.email}</span>. 
+                    <div className="text-[10px] opacity-80 mt-0.5">Data diri Anda telah diisi otomatis dari profil.</div>
+                  </div>
                </div>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Nama Depan *</label>
-                <input name="firstName" onChange={handleChange} className="w-full bg-[#F9F9F9] border-transparent focus:bg-white border focus:border-black px-4 py-3.5 rounded-xl text-sm outline-none transition-all placeholder:text-gray-300" placeholder="John" />
+                <input name="firstName" value={form.firstName} onChange={handleChange} className="w-full bg-[#F9F9F9] border-transparent focus:bg-white border focus:border-black px-4 py-3.5 rounded-xl text-sm outline-none transition-all placeholder:text-gray-300" placeholder="John" />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Nama Belakang</label>
-                <input name="lastName" onChange={handleChange} className="w-full bg-[#F9F9F9] border-transparent focus:bg-white border focus:border-black px-4 py-3.5 rounded-xl text-sm outline-none transition-all placeholder:text-gray-300" placeholder="Doe" />
+                <input name="lastName" value={form.lastName} onChange={handleChange} className="w-full bg-[#F9F9F9] border-transparent focus:bg-white border focus:border-black px-4 py-3.5 rounded-xl text-sm outline-none transition-all placeholder:text-gray-300" placeholder="Doe" />
               </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                <div className="space-y-2">
                  <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Email (Opsional)</label>
-                 <input name="email" type="email" onChange={handleChange} defaultValue={user?.email || ""} className="w-full bg-[#F9F9F9] border-transparent focus:bg-white border focus:border-black px-4 py-3.5 rounded-xl text-sm outline-none transition-all placeholder:text-gray-300" placeholder="john@example.com" />
+                 <input name="email" type="email" value={form.email} onChange={handleChange} className="w-full bg-[#F9F9F9] border-transparent focus:bg-white border focus:border-black px-4 py-3.5 rounded-xl text-sm outline-none transition-all placeholder:text-gray-300" placeholder="john@example.com" />
                </div>
                <div className="space-y-2">
                  <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Nomor Telepon *</label>
-                 <input name="phone" type="tel" onChange={handleChange} className="w-full bg-[#F9F9F9] border-transparent focus:bg-white border focus:border-black px-4 py-3.5 rounded-xl text-sm outline-none transition-all placeholder:text-gray-300" placeholder="+62 812..." />
+                 <input name="phone" type="tel" value={form.phone} onChange={handleChange} className="w-full bg-[#F9F9F9] border-transparent focus:bg-white border focus:border-black px-4 py-3.5 rounded-xl text-sm outline-none transition-all placeholder:text-gray-300" placeholder="+62 812..." />
                </div>
             </div>
 
             <div className="space-y-2">
               <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Alamat Lengkap *</label>
-              <textarea rows="3" name="address" onChange={handleChange} className="w-full bg-[#F9F9F9] border-transparent focus:bg-white border focus:border-black px-4 py-3.5 rounded-xl text-sm outline-none transition-all placeholder:text-gray-300 resize-none" placeholder="Jl. Sudirman No. 1..." />
+              <textarea rows="3" name="address" value={form.address} onChange={handleChange} className="w-full bg-[#F9F9F9] border-transparent focus:bg-white border focus:border-black px-4 py-3.5 rounded-xl text-sm outline-none transition-all placeholder:text-gray-300 resize-none" placeholder="Jl. Sudirman No. 1..." />
             </div>
 
             <div className="grid grid-cols-2 gap-6">
                <div className="space-y-2">
                  <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Kota *</label>
-                 <input name="city" onChange={handleChange} className="w-full bg-[#F9F9F9] border-transparent focus:bg-white border focus:border-black px-4 py-3.5 rounded-xl text-sm outline-none transition-all placeholder:text-gray-300" placeholder="Jakarta" />
+                 <input name="city" value={form.city} onChange={handleChange} className="w-full bg-[#F9F9F9] border-transparent focus:bg-white border focus:border-black px-4 py-3.5 rounded-xl text-sm outline-none transition-all placeholder:text-gray-300" placeholder="Jakarta" />
                </div>
                <div className="space-y-2">
                  <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Kode Pos</label>

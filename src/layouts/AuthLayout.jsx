@@ -1,11 +1,7 @@
 import { Outlet } from "react-router-dom";
 
 export default function AuthLayout() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="w-full max-w-md p-6 bg-white shadow rounded">
-        <Outlet />
-      </div>
-    </div>
-  );
+  // Kita hapus container pembatas (flex center, max-w-md, dll)
+  // Agar halaman Login & Register bisa mengambil alih layar sepenuhnya (Full Screen)
+  return <Outlet />;
 }

@@ -18,7 +18,6 @@ export default function AdminOrders() {
     { label: "Cancelled", value: "cancelled" },
   ];
 
-  // ... (Load Orders logic remains the same) ...
   async function loadOrders() {
     setLoading(true);
     let query = supabase
@@ -66,8 +65,10 @@ export default function AdminOrders() {
     }
   };
 
+  // PERBAIKAN: Hapus 'h-screen' atau pembatas tinggi statis. Biarkan container mengalir (flow).
+  // AdminLayout sudah menangani scroll container utama.
   return (
-    <div className="space-y-8 pb-20">
+    <div className="space-y-8 pb-20 w-full">
       {/* HEADER */}
       <div className="flex flex-col gap-6 border-b border-black/5 pb-8">
         <div className="flex justify-between items-end">
@@ -80,7 +81,7 @@ export default function AdminOrders() {
           </div>
         </div>
 
-        {/* FILTER TABS (UPDATED STYLE) */}
+        {/* FILTER TABS */}
         <div className="flex flex-wrap gap-2">
           {tabs.map((tab) => (
             <button
@@ -98,68 +99,81 @@ export default function AdminOrders() {
         </div>
       </div>
 
-      {/* TABLE */}
-      {loading ? (
-        <div className="py-20 text-center text-gray-400 italic font-serif">Loading orders...</div>
-      ) : orders.length === 0 ? (
-        <div className="py-32 text-center bg-white rounded-xl border border-dashed border-gray-200">
-          <p className="text-gray-400 font-serif text-lg italic mb-2">No orders found.</p>
-          <p className="text-xs text-gray-400 uppercase tracking-widest">
-            In {activeTab === 'All' ? 'all categories' : activeTab} status
-          </p>
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-widest font-bold border-b border-gray-100">
-                <tr>
-                  <th className="px-6 py-4">ID</th>
-                  <th className="px-6 py-4">Customer</th>
-                  <th className="px-6 py-4">Date</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Total</th>
-                  <th className="px-6 py-4 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {orders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50/50 transition-colors group">
-                    <td className="px-6 py-4 font-mono text-xs text-gray-500">#{order.id}</td>
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-gray-900">{order.customer_name}</div>
-                      <div className="text-xs text-gray-400 mt-0.5">{order.shipping_address}</div>
-                    </td>
-                    <td className="px-6 py-4 text-gray-500 text-xs">{formatDate(order.created_at)}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getStatusBadge(order.status)}`}>
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 font-serif font-medium text-gray-900">{formatPrice(order.total_price)}</td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="relative inline-block">
-                        <select
-                          value={order.status}
-                          onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                          className="appearance-none bg-white border border-gray-200 text-gray-700 py-1.5 pl-3 pr-8 rounded-lg text-xs font-medium shadow-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black hover:border-gray-300 cursor-pointer transition-all"
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="paid">Paid</option>
-                          <option value="processed">Processed</option>
-                          <option value="shipped">Shipped</option>
-                          <option value="completed">Completed</option>
-                          <option value="cancelled">Cancelled</option>
-                        </select>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* TABLE CONTAINER */}
+      {/* Tambahkan overflow-x-auto agar tabel bisa di-scroll horizontal di layar kecil */}
+      <div className="w-full overflow-hidden">
+        {loading ? (
+          <div className="py-20 text-center text-gray-400 italic font-serif">Loading orders...</div>
+        ) : orders.length === 0 ? (
+          <div className="py-32 text-center bg-white rounded-xl border border-dashed border-gray-200">
+            <p className="text-gray-400 font-serif text-lg italic mb-2">No orders found.</p>
+            <p className="text-xs text-gray-400 uppercase tracking-widest">
+              In {activeTab === 'All' ? 'all categories' : activeTab} status
+            </p>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto custom-scrollbar">
+              <table className="w-full text-sm text-left min-w-[800px]"> {/* Min-width agar tabel tidak gepeng */}
+                <thead className="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-widest font-bold border-b border-gray-100">
+                  <tr>
+                    <th className="px-6 py-4 whitespace-nowrap">ID</th>
+                    <th className="px-6 py-4 whitespace-nowrap">Customer</th>
+                    <th className="px-6 py-4 whitespace-nowrap">Date</th>
+                    <th className="px-6 py-4 whitespace-nowrap">Status</th>
+                    <th className="px-6 py-4 whitespace-nowrap">Total</th>
+                    <th className="px-6 py-4 text-right whitespace-nowrap">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {orders.map((order) => {
+                    const isFinal = ['completed', 'cancelled'].includes(order.status);
+                    return (
+                      <tr key={order.id} className="hover:bg-gray-50/50 transition-colors group">
+                        <td className="px-6 py-4 font-mono text-xs text-gray-500">
+                          <Link to={`/admin/orders/${order.id}`} className="hover:underline hover:text-black">
+                            #{order.id}
+                          </Link>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-gray-900">{order.customer_name}</div>
+                          <div className="text-xs text-gray-400 mt-0.5 max-w-[200px] truncate">{order.shipping_address}</div>
+                        </td>
+                        <td className="px-6 py-4 text-gray-500 text-xs whitespace-nowrap">{formatDate(order.created_at)}</td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-block px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getStatusBadge(order.status)}`}>
+                            {order.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 font-serif font-medium text-gray-900 whitespace-nowrap">{formatPrice(order.total_price)}</td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="relative inline-block">
+                            <select
+                              value={order.status}
+                              onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                              disabled={isFinal}
+                              className={`appearance-none border text-gray-700 py-1.5 pl-3 pr-8 rounded-lg text-xs font-medium shadow-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all cursor-pointer
+                                ${isFinal ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white border-gray-200 hover:border-gray-300'}
+                              `}
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="paid">Paid</option>
+                              <option value="processed">Processed</option>
+                              <option value="shipped">Shipped</option>
+                              <option value="completed">Completed</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

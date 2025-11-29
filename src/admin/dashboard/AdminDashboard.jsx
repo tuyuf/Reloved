@@ -58,7 +58,7 @@ export default function AdminDashboard() {
   if (loading) return <div className="p-20 text-center text-gray-400 italic font-serif">Loading dashboard...</div>;
 
   return (
-    <div className="space-y-10 pb-20">
+    <div className="space-y-10 w-full">
       {/* Header */}
       <div className="border-b border-black/5 pb-6">
         <h1 className="text-4xl font-serif text-[#111]">Dashboard</h1>
@@ -67,15 +67,15 @@ export default function AdminDashboard() {
 
       {/* Main Stats (Big Cards) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-[#111] text-white p-8 rounded-xl shadow-lg">
+        <div className="bg-[#111] text-white p-8 rounded-2xl shadow-lg">
           <div className="text-[10px] uppercase tracking-widest opacity-60 mb-2">Total Revenue</div>
           <div className="text-3xl font-serif">{formatPrice(stats.revenue)}</div>
         </div>
-        <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100">
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
           <div className="text-[10px] uppercase tracking-widest text-gray-400 mb-2">Total Orders</div>
           <div className="text-3xl font-serif text-[#111]">{stats.totalOrders}</div>
         </div>
-        <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100">
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
           <div className="text-[10px] uppercase tracking-widest text-gray-400 mb-2">Total Products</div>
           <div className="text-3xl font-serif text-[#111]">{stats.totalProducts}</div>
         </div>

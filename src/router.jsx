@@ -8,11 +8,12 @@ import Orders from "./pages/orders/Orders";
 import ProductDetail from "./pages/product/ProductDetail";
 import Cart from "./pages/cart/Cart";
 import Checkout from "./pages/checkout/Checkout";
-import History from "./pages/History/history"; 
+import History from "./pages/history/history"; 
 import Profile from "./pages/profile/Profile"; 
 
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
+import AdminLogin from "./pages/auth/AdminLogin"; 
 
 import AdminLayout from "./layouts/AdminLayout";
 import AdminDashboard from "./admin/dashboard/AdminDashboard";
@@ -20,7 +21,7 @@ import AdminProducts from "./admin/products/AdminProducts";
 import AddProduct from "./admin/products/AddProduct";
 import EditProduct from "./admin/products/EditProduct";
 import AdminOrders from "./admin/orders/AdminOrders";
-import AdminOrderDetail from "./admin/orders/AdminOrderDetail"; // IMPORT HALAMAN BARU
+import AdminOrderDetail from "./admin/orders/AdminOrderDetail"; 
 import VerifyPayment from "./admin/orders/VerifyPayment";
 
 const router = createBrowserRouter([
@@ -46,6 +47,11 @@ const router = createBrowserRouter([
       { path: "register", element: <Register /> },
     ],
   },
+ 
+  {
+    path: "/admin/login",
+    element: <AdminLogin />,
+  },
   {
     path: "/admin",
     element: <AdminLayout />,
@@ -55,7 +61,7 @@ const router = createBrowserRouter([
       { path: "products/add", element: <AddProduct /> },
       { path: "products/edit/:id", element: <EditProduct /> },
       { path: "orders", element: <AdminOrders /> },
-      { path: "orders/:id", element: <AdminOrderDetail /> }, // RUTE BARU
+      { path: "orders/:id", element: <AdminOrderDetail /> }, 
       { path: "orders/verify/:id", element: <VerifyPayment /> },
     ],
   },

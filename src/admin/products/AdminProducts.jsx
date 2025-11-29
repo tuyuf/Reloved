@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useNavigate } from "react-router-dom";
-import { formatPrice, formatDate } from "../../lib/format";
+import { formatPrice } from "../../lib/format";
 
 const CATEGORY_LABEL = {
   shirt: "Shirt",
@@ -37,16 +37,36 @@ export default function AdminProducts() {
   }, []);
 
   async function handleDelete(id) {
-    if (!confirm("Yakin hapus produk ini?")) return;
+    if (!confirm("Yakin hapus produk ini? Tindakan ini tidak bisa dibatalkan.")) return;
     setDeletingId(id);
-    const { error } = await supabase.from("products").delete().eq("id", id);
-    if (error) {
-      console.error(error);
-      alert("Gagal menghapus produk");
-    } else {
-      setProducts((prev) => prev.filter((p) => p.id !== id));
+
+    try {
+      // 1. Hapus dulu dari cart_items (keranjang orang) agar tidak nyangkut foreign key
+      await supabase.from("cart_items").delete().eq("product_id", id);
+
+      // 2. Baru hapus produknya
+      const { error } = await supabase.from("products").delete().eq("id", id);
+
+      if (error) {
+        console.error(error);
+        // Tampilkan pesan error spesifik
+        if (error.code === '23503') {
+           alert("Gagal: Produk ini sudah pernah dipesan (ada di riwayat order). Tidak bisa dihapus demi arsip data.");
+        } else if (error.code === '42501') {
+           alert("Gagal: Izin ditolak (RLS Policy). Jalankan script SQL yang saya berikan.");
+        } else {
+           alert("Gagal menghapus: " + error.message);
+        }
+      } else {
+        setProducts((prev) => prev.filter((p) => p.id !== id));
+        alert("Produk berhasil dihapus.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Terjadi kesalahan sistem.");
+    } finally {
+      setDeletingId(null);
     }
-    setDeletingId(null);
   }
 
   return (

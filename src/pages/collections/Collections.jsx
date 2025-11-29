@@ -35,14 +35,14 @@ export default function Collections() {
     show: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.08, // Sedikit lebih cepat dari home
+        staggerChildren: 0.08, 
         delayChildren: 0.1
       }
     }
   };
 
   return (
-    <div className="max-w-[1200px] mx-auto pb-20 px-4 md:px-0">
+    <div className="w-full max-w-[1200px] mx-auto pb-20 px-4 sm:px-6 pt-24 md:pt-12">
       
       {/* Header & Controls */}
       <motion.div 
@@ -107,7 +107,12 @@ export default function Collections() {
           variants={containerVariants}
           initial="hidden"
           animate="show"
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10"
+          // PERUBAHAN UTAMA DI SINI:
+          // grid-cols-2 : Default 2 kolom (Mobile)
+          // md:grid-cols-3 : 3 kolom di Tablet/Laptop
+          // lg:grid-cols-4 : 4 kolom di Desktop besar
+          // gap-x-4 : Jarak antar kolom di mobile lebih rapat
+          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10"
         >
           <AnimatePresence mode="popLayout">
             {products.map((p, idx) => (

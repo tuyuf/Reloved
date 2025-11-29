@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import ProductCard from "../../components/ProductCard";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, Link } from "react-router-dom"; // Import Link
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Home() {
@@ -40,14 +40,13 @@ export default function Home() {
     load();
   }, [activeCategory, search]);
 
-  // Animasi Container Utama (Stagger Effect)
   const gridContainerVariants = {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1, // Jeda 0.1 detik antar item
-        delayChildren: 0.2,   // Tunggu 0.2 detik sebelum mulai
+        staggerChildren: 0.1,
+        delayChildren: 0.2,
       }
     }
   };
@@ -139,18 +138,37 @@ export default function Home() {
           <button onClick={() => {setActiveCategory("All"); setSearch("")}} className="text-sm text-black underline underline-offset-4 hover:text-gray-600">Clear filters</button>
         </motion.div>
       ) : (
-        <motion.div 
-          variants={gridContainerVariants}
-          initial="hidden"
-          animate="show"
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10"
-        >
-          <AnimatePresence>
-            {products.map((p, idx) => (
-              <ProductCard key={p.id} product={p} index={idx} />
-            ))}
-          </AnimatePresence>
-        </motion.div>
+        <>
+          <motion.div 
+            variants={gridContainerVariants}
+            initial="hidden"
+            animate="show"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10"
+          >
+            <AnimatePresence>
+              {products.map((p, idx) => (
+                <ProductCard key={p.id} product={p} index={idx} />
+              ))}
+            </AnimatePresence>
+          </motion.div>
+
+          {/* TOMBOL SEE ALL (Hanya muncul jika ada produk) */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+            className="mt-16 flex justify-center"
+          >
+            <Link 
+              to="/collections"
+              className="group px-8 py-4 bg-white border border-gray-200 text-gray-900 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-black hover:text-white hover:border-black transition-all duration-300 shadow-sm hover:shadow-lg flex items-center gap-3"
+            >
+              See All Collections
+              <span className="group-hover:translate-x-1 transition-transform">→</span>
+            </Link>
+          </motion.div>
+        </>
       )}
       
       {/* 4. FOOTER PROMO */}
@@ -159,7 +177,7 @@ export default function Home() {
         whileInView={{ opacity: 1 }}
         viewport={{ once: true }}
         transition={{ duration: 1 }}
-        className="mt-32 py-20 text-center border-t border-black/5"
+        className="mt-20 py-20 text-center border-t border-black/5"
       >
         <h2 className="text-4xl md:text-5xl mb-6 font-serif text-[#111]">
           Help you find <br />

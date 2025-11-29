@@ -45,7 +45,6 @@ export default function AddProduct() {
 
   function addVariant() {
     if (!tempSize || tempStock < 0) return;
-    
     setVariants(prev => {
       const existing = prev.findIndex(v => v.size === tempSize);
       if (existing >= 0) {
@@ -83,15 +82,8 @@ export default function AddProduct() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!form.name || !form.price) {
-      alert("Nama dan harga wajib diisi");
-      return;
-    }
-    
-    if (variants.length === 0) {
-      alert("Wajib memasukkan minimal satu ukuran dan stok.");
-      return;
-    }
+    if (!form.name || !form.price) return alert("Nama dan harga wajib diisi");
+    if (variants.length === 0) return alert("Wajib memasukkan minimal satu ukuran dan stok.");
 
     setLoading(true);
 
@@ -110,14 +102,9 @@ export default function AddProduct() {
         image_url: imageUrl,
       });
 
-      if (error) {
-        console.error(error);
-        alert("Gagal menyimpan produk: " + error.message);
-      } else {
-        navigate("/admin/products");
-      }
+      if (error) alert("Gagal menyimpan produk: " + error.message);
+      else navigate("/admin/products");
     } catch (err) {
-      console.error(err);
       alert("Terjadi kesalahan");
     } finally {
       setLoading(false);
@@ -125,8 +112,9 @@ export default function AddProduct() {
   }
 
   return (
-    <div className="reloved-page space-y-8">
-      <div className="flex items-center justify-between">
+    // Container utama tanpa fixed height agar bisa di-scroll
+    <div className="w-full pb-32">
+      <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-xl tracking-[0.35em] uppercase">Add New Product</h1>
           <p className="text-xs text-black/50 mt-2">Atur stok berdasarkan ukuran.</p>
@@ -134,8 +122,9 @@ export default function AddProduct() {
         <button onClick={() => navigate("/admin/products")} className="px-6 h-10 rounded-full border border-black/10 text-xs tracking-[0.25em] uppercase hover:bg-black hover:text-white transition-colors">Back</button>
       </div>
 
-      <div className="grid grid-cols-12 gap-8">
-        <form onSubmit={handleSubmit} className="col-span-12 md:col-span-7 bg-white border border-black/5 rounded-[32px] p-8 space-y-8 shadow-sm">
+      <div className="grid grid-cols-12 gap-8 items-start">
+        {/* FORM SECTION */}
+        <form onSubmit={handleSubmit} className="col-span-12 lg:col-span-7 bg-white border border-black/5 rounded-[32px] p-8 space-y-8 shadow-sm">
           <div className="space-y-5">
              <div className="space-y-2">
                <label className="text-[10px] tracking-[0.25em] uppercase font-bold text-gray-500">Product Name</label>
@@ -148,7 +137,7 @@ export default function AddProduct() {
              </div>
           </div>
 
-          {/* VARIANT & STOCK MANAGEMENT UI BARU */}
+          {/* VARIANT & STOCK MANAGEMENT */}
           <div className="bg-[#FAFAFA] p-6 rounded-[24px] border border-gray-200 space-y-6">
              <div className="flex justify-between items-center border-b border-gray-200 pb-4">
                 <div className="flex flex-col">
@@ -158,68 +147,38 @@ export default function AddProduct() {
                 <span className="text-xs font-medium bg-black text-white px-3 py-1.5 rounded-full shadow-sm">Total: {totalStock} pcs</span>
              </div>
              
-             {/* Input Area */}
              <div className="flex gap-4 items-end">
                 <div className="space-y-1.5 flex-1">
                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Select Size</label>
-                   <select 
-                      value={tempSize} 
-                      onChange={(e) => setTempSize(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none focus:border-black transition-colors"
-                   >
+                   <select value={tempSize} onChange={(e) => setTempSize(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none focus:border-black transition-colors">
                       {PREDEFINED_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
                    </select>
                 </div>
                 <div className="space-y-1.5 w-32">
                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Quantity</label>
-                   <input 
-                      type="number" 
-                      min="1"
-                      value={tempStock} 
-                      onChange={(e) => setTempStock(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-black transition-colors"
-                   />
+                   <input type="number" min="1" value={tempStock} onChange={(e) => setTempStock(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-black transition-colors" />
                 </div>
-                <button 
-                   type="button"
-                   onClick={addVariant}
-                   className="px-6 py-2.5 bg-black text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-gray-800 transition-all shadow-md active:scale-95 h-[42px]"
-                >
-                   Add
-                </button>
+                <button type="button" onClick={addVariant} className="px-6 py-2.5 bg-black text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-gray-800 transition-all shadow-md active:scale-95 h-[42px]">Add</button>
              </div>
 
-             {/* List Variants Table */}
              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                 <div className="grid grid-cols-3 bg-gray-50 px-4 py-3 text-[10px] uppercase tracking-widest font-bold text-gray-500 border-b border-gray-200">
                    <div>Size</div>
                    <div className="text-center">Stock</div>
                    <div className="text-right">Action</div>
                 </div>
-                
                 {variants.length === 0 ? (
                    <div className="p-8 text-center text-gray-400 text-xs italic flex flex-col items-center gap-2">
                       <span className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-300">!</span>
-                      No sizes added yet. Use the form above.
+                      No sizes added yet.
                    </div>
                 ) : (
                    <div className="divide-y divide-gray-100">
                       {variants.map((v, idx) => (
                          <div key={idx} className="grid grid-cols-3 px-4 py-3 items-center hover:bg-gray-50/50 transition-colors">
-                            <div>
-                               <span className="inline-block min-w-[30px] text-center py-1 bg-gray-100 rounded-md text-xs font-bold text-gray-700 border border-gray-200">{v.size}</span>
-                            </div>
+                            <div><span className="inline-block min-w-[30px] text-center py-1 bg-gray-100 rounded-md text-xs font-bold text-gray-700 border border-gray-200">{v.size}</span></div>
                             <div className="text-center text-sm font-medium text-gray-700">{v.stock} pcs</div>
-                            <div className="text-right">
-                               <button 
-                                  type="button" 
-                                  onClick={() => removeVariant(v.size)}
-                                  className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors group"
-                                  title="Remove"
-                               >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                               </button>
-                            </div>
+                            <div className="text-right"><button type="button" onClick={() => removeVariant(v.size)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors">×</button></div>
                          </div>
                       ))}
                    </div>
@@ -234,7 +193,6 @@ export default function AddProduct() {
                  {CATEGORY_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                </select>
              </div>
-
              <div className="space-y-2">
                 <label className="text-[10px] tracking-[0.25em] uppercase font-bold text-gray-500">Condition</label>
                 <input className="w-full border border-gray-200 bg-gray-50/50 focus:bg-white rounded-xl px-4 py-3 text-sm outline-none focus:border-black transition-all" value={form.condition} onChange={(e) => updateField("condition", e.target.value)} placeholder="Very Good / Like New" />
@@ -247,24 +205,23 @@ export default function AddProduct() {
           </div>
 
           <button type="submit" disabled={loading} className="w-full h-12 rounded-xl bg-black text-white text-xs font-bold uppercase tracking-[0.2em] hover:bg-gray-800 transition-all shadow-lg active:scale-[0.98] disabled:opacity-50">
-            {loading ? "Saving Product..." : "Create Product"}
+            {loading ? "Saving..." : "Create Product"}
           </button>
         </form>
 
-        <div className="col-span-12 md:col-span-5 space-y-6">
-           <div className="bg-white border border-black/5 rounded-[32px] p-6 space-y-4 shadow-sm sticky top-8">
+        {/* PREVIEW & IMAGE UPLOAD */}
+        <div className="col-span-12 lg:col-span-5 space-y-6 sticky top-8">
+           <div className="bg-white border border-black/5 rounded-[32px] p-6 space-y-4 shadow-sm">
              <div className="text-[10px] tracking-[0.25em] uppercase text-black/40 font-bold">Preview Card</div>
              <div className="border border-black/5 rounded-[24px] overflow-hidden bg-[#F9F9F9] aspect-[3/4] relative group cursor-default">
                {preview ? (
                   <img src={preview} alt="preview" className="w-full h-full object-cover" />
                ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 gap-2">
-                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                      <span className="text-[10px] uppercase tracking-widest">No Image</span>
                   </div>
                )}
                
-               {/* Label stok simulasi */}
                <div className="absolute bottom-0 left-0 w-full bg-white/90 backdrop-blur-md p-4 border-t border-gray-100">
                   <div className="text-xs uppercase font-bold tracking-widest mb-1">{form.name || "Product Name"}</div>
                   <div className="flex justify-between items-end">
@@ -283,7 +240,6 @@ export default function AddProduct() {
                <label className="text-[10px] tracking-[0.25em] uppercase font-bold text-gray-400">Upload Image</label>
                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-200 border-dashed rounded-2xl cursor-pointer hover:bg-gray-50 transition-colors group">
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                     <svg className="w-8 h-8 mb-2 text-gray-300 group-hover:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16"><path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/></svg>
                      <p className="text-xs text-gray-400"><span className="font-semibold text-gray-600">Click to upload</span></p>
                   </div>
                   <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
