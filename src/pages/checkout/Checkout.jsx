@@ -3,7 +3,7 @@ import { useCart } from "../../context/CartContext";
 import { useUser } from "../../context/UserContext"; 
 import { useNavigate } from "react-router-dom";
 import { formatPrice } from "../../lib/format";
-import { api } from "../../services/api"; // Updated import
+import { api } from "../../services/api";
 
 export default function Checkout() {
   const { cart, clearCart } = useCart();
@@ -44,14 +44,12 @@ export default function Checkout() {
     setLoading(true);
 
     try {
-      // 1. VALIDASI STOK PER SIZE (Manually checking latest stock)
       const updatesMap = new Map();
 
       for (const item of cart) {
          let productData = updatesMap.get(item.id)?.productData;
          
          if (!productData) {
-            // Fetch single product via API
             const products = await api.db.get('products', { id: `eq.${item.id}`, select: '*' });
             if (!products || products.length === 0) throw new Error(`Produk "${item.name}" tidak ditemukan.`);
             productData = products[0];
@@ -91,8 +89,6 @@ export default function Checkout() {
          }
       }
 
-      // 2. BUAT ORDER
-      // API Insert returns an array of inserted objects
       const insertedOrder = await api.db.insert('orders', {
           user_id: user?.id || null,
           customer_name: `${form.firstName} ${form.lastName}`,
@@ -105,7 +101,6 @@ export default function Checkout() {
 
       const orderId = insertedOrder[0].id;
 
-      // 3. MASUKKAN ORDER ITEMS
       const itemsToInsert = cart.map(item => ({
         order_id: orderId,
         product_id: item.id,
@@ -116,7 +111,6 @@ export default function Checkout() {
 
       await api.db.insert('order_items', itemsToInsert, token);
 
-      // 4. UPDATE STOK
       for (const [productId, updateData] of updatesMap.entries()) {
          const { newVariants, newTotalStock } = updateData;
          const payload = { stock: newTotalStock };
@@ -125,7 +119,6 @@ export default function Checkout() {
          await api.db.update('products', productId, payload, token);
       }
 
-      // SUKSES
       setSavedOrderId(orderId);
       setFinalTotal(total);
       setIsOrderPlaced(true);
@@ -142,7 +135,6 @@ export default function Checkout() {
     }
   };
 
-  // UI Code Remains Same
   if (cart.length === 0 && !isOrderPlaced) {
     return (
       <div className="w-full max-w-[1200px] mx-auto pb-20 px-4 sm:px-6 pt-32 text-center">
@@ -176,7 +168,13 @@ export default function Checkout() {
               <p className="text-xs text-gray-500">a.n ReLoved Official</p>
             </div>
           </div>
-          <button onClick={() => { window.location.href = "/" }} className="w-full py-4 bg-[#111] text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg shadow-black/10">Kembali ke Home</button>
+          {/* FIXED: Uses navigate() instead of window.location.href to prevent context crash */}
+          <button 
+            onClick={() => navigate("/")} 
+            className="w-full py-4 bg-[#111] text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg shadow-black/10"
+          >
+            Kembali ke Home
+          </button>
         </div>
       </div>
     );

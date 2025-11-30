@@ -2,24 +2,20 @@ import { createBrowserRouter } from "react-router-dom";
 import UserLayout from "./layouts/UserLayout";
 import AuthLayout from "./layouts/AuthLayout";
 
-// ... import pages lainnya (Home, Collections, dll) ...
 import Home from "./pages/home/Home";
 import Collections from "./pages/collections/Collections"; 
 import Orders from "./pages/orders/Orders"; 
 import ProductDetail from "./pages/product/ProductDetail";
 import Cart from "./pages/cart/Cart";
 import Checkout from "./pages/checkout/Checkout";
-import History from "./pages/history/History"; 
+import History from "./pages/history/History"; // Ensure file is renamed to History.jsx
 import Profile from "./pages/profile/Profile"; 
 
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import AdminLogin from "./pages/auth/AdminLogin"; 
-
-// --- IMPORT HALAMAN BARU ---
 import ApiDocs from "./pages/ApiDocs"; 
 
-// ... import admin pages ...
 import AdminLayout from "./layouts/AdminLayout";
 import AdminDashboard from "./admin/dashboard/AdminDashboard";
 import AdminProducts from "./admin/products/AdminProducts";
@@ -52,13 +48,10 @@ const router = createBrowserRouter([
       { path: "register", element: <Register /> },
     ],
   },
-  
-  // --- ROUTE BARU UNTUK DOKUMENTASI ---
   {
     path: "/api-docs",
     element: <ApiDocs />,
   },
- 
   {
     path: "/admin/login",
     element: <AdminLogin />,

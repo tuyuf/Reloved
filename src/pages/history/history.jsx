@@ -93,14 +93,12 @@ export default function History() {
                 variants={itemVariants}
                 className="group bg-white p-6 rounded-3xl border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all duration-300 flex flex-col md:flex-row items-start md:items-center gap-6"
               >
-                 {/* Status Icon */}
                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shrink-0 transition-transform group-hover:scale-110 ${
                     order.status === 'completed' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'
                  }`}>
                     {order.status === 'completed' ? '✓' : '✕'}
                  </div>
 
-                 {/* Main Info */}
                  <div className="flex-1 w-full">
                     <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
                        <span className="font-mono text-xs text-gray-400 mb-1 md:mb-0">#{order.id}</span>
@@ -124,7 +122,6 @@ export default function History() {
                     </div>
                  </div>
 
-                 {/* Price */}
                  <div className="w-full md:w-auto text-left md:text-right pt-4 md:pt-0 border-t md:border-t-0 border-gray-50 mt-2 md:mt-0">
                     <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">Total Paid</div>
                     <div className="text-xl font-serif text-[#111]">{formatPrice(order.total_price)}</div>

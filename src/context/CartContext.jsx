@@ -2,7 +2,16 @@ import { createContext, useContext, useState, useEffect } from "react";
 import { useUser } from "./UserContext";
 import { api } from "../services/api";
 
-const CartContext = createContext();
+// SAFETY NET: Default values to prevent "undefined" errors
+const CartContext = createContext({
+  cart: [],
+  addToCart: async () => {},
+  removeFromCart: async () => {},
+  updateQuantity: async () => {},
+  clearCart: async () => {},
+  loading: false,
+  setCart: () => {}
+});
 
 export function CartProvider({ children }) {
   const { user, token } = useUser();
@@ -32,7 +41,7 @@ export function CartProvider({ children }) {
             });
             setCart(formatted);
           }
-        } catch(e) { console.error(e); }
+        } catch(e) { console.error("Cart load failed", e); }
         setLoading(false);
       } else {
         const saved = localStorage.getItem("reloved_cart_guest");
@@ -49,7 +58,6 @@ export function CartProvider({ children }) {
 
   // 3. ADD TO CART
   const addToCart = async (product, quantity, size, maxStock) => {
-    // 1. Optimistic Update
     let newCart = [...cart];
     const idx = newCart.findIndex(i => String(i.id) === String(product.id) && i.selectedSize === size);
     
@@ -66,10 +74,8 @@ export function CartProvider({ children }) {
     }
     setCart(newCart);
 
-    // 2. API Sync
     if (user && token) {
       const item = newCart.find(i => String(i.id) === String(product.id) && i.selectedSize === size);
-      // Upsert: merge duplicates based on unique constraint
       try {
         await api.db.upsert("cart_items", {
           user_id: user.id,
@@ -78,7 +84,7 @@ export function CartProvider({ children }) {
           quantity: item.quantity
         }, "user_id,product_id,size", token);
       } catch (e) {
-        console.error("Add to cart failed", e);
+        console.error("API error adding to cart", e);
       }
     }
   };
@@ -95,27 +101,25 @@ export function CartProvider({ children }) {
        try {
          await api.db.deleteWhere("cart_items", params, token);
        } catch (e) {
-         console.error("Remove failed", e);
+         console.error("API error removing cart item", e);
        }
     }
   };
 
   // 5. UPDATE QUANTITY
   const updateQuantity = async (id, size, delta) => {
-    // Update Local
     let newQty = 0;
     const newCart = cart.map(item => {
        if(String(item.id) === String(id) && item.selectedSize === size) {
          newQty = item.quantity + delta;
-         if (newQty < 1) newQty = 1; // Prevent 0
-         if (newQty > item.stock) newQty = item.stock; // Check stock
+         if (newQty < 1) newQty = 1;
+         if (newQty > item.stock) newQty = item.stock; 
          return { ...item, quantity: newQty };
        }
        return item;
     });
     setCart(newCart);
 
-    // Update DB
     if (user && token && newQty > 0) {
        const params = { user_id: `eq.${user.id}`, product_id: `eq.${id}` };
        if (size) params.size = `eq.${size}`;
@@ -124,7 +128,7 @@ export function CartProvider({ children }) {
        try {
          await api.db.updateWhere("cart_items", params, { quantity: newQty }, token);
        } catch(e) {
-         console.error("Update quantity failed", e);
+         console.error("API error updating cart", e);
        }
     }
   };
@@ -136,7 +140,7 @@ export function CartProvider({ children }) {
       try {
         await api.db.deleteWhere("cart_items", { user_id: `eq.${user.id}` }, token);
       } catch (e) {
-        console.error("Clear cart failed", e);
+        console.error("API error clearing cart", e);
       }
     } else {
       localStorage.removeItem("reloved_cart_guest");
