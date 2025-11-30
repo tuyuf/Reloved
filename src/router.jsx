@@ -8,7 +8,7 @@ import Orders from "./pages/orders/Orders";
 import ProductDetail from "./pages/product/ProductDetail";
 import Cart from "./pages/cart/Cart";
 import Checkout from "./pages/checkout/Checkout";
-import History from "./pages/history/History"; // Ensure file is renamed to History.jsx
+import History from "./pages/history/History";
 import Profile from "./pages/profile/Profile"; 
 
 import Login from "./pages/auth/Login";
