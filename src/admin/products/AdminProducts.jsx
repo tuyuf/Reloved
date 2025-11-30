@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { api } from "../../services/api";
 import { useNavigate } from "react-router-dom";
 import { formatPrice } from "../../lib/format";
+import { useUser } from "../../context/UserContext";
 
 const CATEGORY_LABEL = {
   shirt: "Shirt",
@@ -11,6 +12,7 @@ const CATEGORY_LABEL = {
 };
 
 export default function AdminProducts() {
+  const { token } = useUser();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
@@ -18,52 +20,42 @@ export default function AdminProducts() {
 
   async function loadProducts() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
+    try {
+      // Fetch all products
+      const data = await api.db.get("products", {
+        select: "*",
+        order: "created_at.desc"
+      }, token);
+      
+      setProducts(data || []);
+    } catch (error) {
       console.error(error);
       alert("Gagal mengambil data produk");
-    } else {
-      setProducts(data || []);
     }
     setLoading(false);
   }
 
   useEffect(() => {
-    loadProducts();
-  }, []);
+    if (token) loadProducts();
+  }, [token]);
 
   async function handleDelete(id) {
     if (!confirm("Yakin hapus produk ini? Tindakan ini tidak bisa dibatalkan.")) return;
     setDeletingId(id);
 
     try {
-      // 1. Hapus dulu dari cart_items (keranjang orang) agar tidak nyangkut foreign key
-      await supabase.from("cart_items").delete().eq("product_id", id);
+      // 1. Delete associated cart items first (Manual cascade via API)
+      await api.db.deleteWhere("cart_items", { product_id: `eq.${id}` }, token);
 
-      // 2. Baru hapus produknya
-      const { error } = await supabase.from("products").delete().eq("id", id);
+      // 2. Delete the product
+      await api.db.delete("products", id, token);
 
-      if (error) {
-        console.error(error);
-        // Tampilkan pesan error spesifik
-        if (error.code === '23503') {
-           alert("Gagal: Produk ini sudah pernah dipesan (ada di riwayat order). Tidak bisa dihapus demi arsip data.");
-        } else if (error.code === '42501') {
-           alert("Gagal: Izin ditolak (RLS Policy). Jalankan script SQL yang saya berikan.");
-        } else {
-           alert("Gagal menghapus: " + error.message);
-        }
-      } else {
-        setProducts((prev) => prev.filter((p) => p.id !== id));
-        alert("Produk berhasil dihapus.");
-      }
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      alert("Produk berhasil dihapus.");
     } catch (err) {
       console.error(err);
-      alert("Terjadi kesalahan sistem.");
+      // Basic error handling since we don't have Supabase error codes directly exposed consistently in all fetches
+      alert("Gagal menghapus produk. Pastikan produk tidak terikat dengan pesanan aktif.");
     } finally {
       setDeletingId(null);
     }

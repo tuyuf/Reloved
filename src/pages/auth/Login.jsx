@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "/src/lib/supabase";
+import { useUser } from "../../context/UserContext"; 
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
@@ -8,6 +8,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const navigate = useNavigate();
+  const { login } = useUser();
 
   const handleChange = (e) =>
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -16,16 +17,21 @@ export default function Login() {
     e.preventDefault();
     setErr("");
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword(form);
+    
+    // Use context action instead of Supabase client
+    const result = await login(form.email, form.password);
+    
     setLoading(false);
-    if (error) setErr(error.message);
-    else navigate("/");
+    if (result.success) {
+        navigate("/");
+    } else {
+        setErr(result.error);
+    }
   };
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-white">
-      
-      {/* BAGIAN KIRI: GAMBAR (Desktop Only) */}
+      {/* Left Side: Image */}
       <div className="hidden lg:block lg:w-1/2 relative bg-[#F4F2F0]">
         <motion.div 
           initial={{ scale: 1.1, opacity: 0 }}
@@ -36,8 +42,8 @@ export default function Login() {
           <img 
             src="https://images.unsplash.com/photo-1558769132-cb1aea458c5e?q=80&w=2574&auto=format&fit=crop" 
             alt="Login Fashion" 
-            className="w-full h-full grayscale contrast-125"
-            style={{ objectFit: "cover", objectPosition: "center" }} // FIX: Mencegah gambar gepeng
+            className="w-full h-full object-cover grayscale contrast-125"
+            style={{ objectFit: "cover", objectPosition: "center" }}
           />
           <div className="absolute inset-0 bg-black/10"></div>
         </motion.div>
@@ -50,13 +56,13 @@ export default function Login() {
         </div>
       </div>
 
-      {/* BAGIAN KANAN: FORM */}
+      {/* Right Side: Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 md:p-16 bg-white relative overflow-y-auto">
         <motion.div 
           initial={{ opacity: 0, x: 30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
-          className="w-full max-w-md space-y-10 my-auto" // my-auto agar vertikal center jika layar tinggi
+          className="w-full max-w-md space-y-10 my-auto"
         >
           <div className="text-left">
             <div className="text-[10px] font-bold tracking-[0.2em] uppercase text-gray-400 mb-4">

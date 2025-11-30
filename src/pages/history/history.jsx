@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { api } from "../../services/api";
 import { formatPrice, formatDate } from "../../lib/format";
 import { useUser } from "../../context/UserContext"; 
 import { motion } from "framer-motion";
 
 export default function History() {
-  const { user } = useUser(); 
+  const { user, token } = useUser(); 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -13,26 +13,29 @@ export default function History() {
     async function load() {
       setLoading(true);
 
-      if (!user) {
+      if (!user || !token) {
         setOrders([]);
         setLoading(false);
         return;
       }
 
-      const { data, error } = await supabase
-         .from("orders")
-         .select("*, order_items(products(name, image_url))")
-         .eq("user_id", user.id)
-         .in("status", ["completed", "cancelled"])
-         .order("created_at", { ascending: false });
-         
-      if (error) console.error(error);
-      else setOrders(data || []);
+      try {
+        const data = await api.db.get("orders", {
+            select: "*, order_items(products(name, image_url))",
+            user_id: `eq.${user.id}`,
+            status: "in.(completed,cancelled)",
+            order: "created_at.desc"
+        }, token);
+        
+        setOrders(data || []);
+      } catch (e) {
+        console.error(e);
+      }
       
       setLoading(false);
     }
     load();
-  }, [user]);
+  }, [user, token]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -48,8 +51,6 @@ export default function History() {
   };
 
   return (
-    // UPDATED: Padding & Width disamakan dengan Home
-    // pt-24 dipertahankan untuk mobile agar tidak nabrak navbar, md:pt-12 untuk desktop
     <div className="w-full max-w-[1200px] mx-auto pb-20 pt-24 md:pt-12 px-4 sm:px-6">
       <motion.div 
         initial={{ opacity: 0, y: -10 }}
@@ -84,7 +85,6 @@ export default function History() {
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          // Ubah menjadi Grid agar lebih rapi di layar lebar
           className="grid grid-cols-1 lg:grid-cols-2 gap-6"
         >
            {orders.map((order) => (

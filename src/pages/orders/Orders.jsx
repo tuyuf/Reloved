@@ -1,40 +1,48 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { api } from "../../services/api";
 import { formatPrice, formatDate } from "../../lib/format";
 import { useUser } from "../../context/UserContext"; 
 import { motion } from "framer-motion";
 
 export default function Orders() {
-  const { user } = useUser(); 
+  const { user, token } = useUser(); 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
   async function loadOrders() {
     setLoading(true);
 
-    if (!user) {
+    if (!user || !token) {
       setOrders([]);
       setLoading(false);
       return;
     }
 
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*, order_items(products(name, image_url))")
-      .eq("user_id", user.id)
-      .in("status", ["pending", "paid", "processed", "shipped"])
-      .order("created_at", { ascending: false });
+    try {
+      const data = await api.db.get("orders", {
+          select: "*, order_items(products(name, image_url))",
+          user_id: `eq.${user.id}`,
+          status: "in.(pending,paid,processed,shipped)",
+          order: "created_at.desc"
+      }, token);
 
-    if (!error) setOrders(data || []);
+      setOrders(data || []);
+    } catch (e) {
+      console.error(e);
+    }
     setLoading(false);
   }
 
-  useEffect(() => { loadOrders(); }, [user]);
+  useEffect(() => { loadOrders(); }, [user, token]);
 
   const handleReceived = async (id) => {
     if (!confirm("Konfirmasi pesanan sudah diterima?")) return;
-    const { error } = await supabase.from("orders").update({ status: "completed" }).eq("id", id);
-    if (!error) loadOrders();
+    try {
+        await api.db.update("orders", id, { status: "completed" }, token);
+        loadOrders();
+    } catch (e) {
+        alert("Update failed");
+    }
   };
 
   const getStatusStyle = (status) => {
@@ -62,8 +70,6 @@ export default function Orders() {
   };
 
   return (
-    // UPDATED: Padding & Width disamakan dengan Home
-    // pt-24 dipertahankan untuk mobile agar tidak nabrak navbar, md:pt-12 untuk desktop
     <div className="w-full max-w-[1200px] mx-auto pb-20 pt-24 md:pt-12 px-4 sm:px-6">
       {/* Header */}
       <motion.div 

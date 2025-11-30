@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { api } from "../../services/api";
 import ProductCard from "../../components/ProductCard";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -14,17 +14,22 @@ export default function Collections() {
   useEffect(() => {
     async function load() {
       setLoading(true);
-      let query = supabase
-        .from("products")
-        .select("*")
-        .gt('stock', 0)
-        .order("created_at", { ascending: false });
+      
+      const params = {
+          select: "*",
+          "stock": "gt.0",
+          order: "created_at.desc"
+      };
 
-      if (category !== "All") query = query.eq("category", category);
-      if (search) query = query.ilike('name', `%${search}%`);
+      if (category !== "All") params.category = `eq.${category}`;
+      if (search) params.name = `ilike.%${search}%`;
 
-      const { data, error } = await query;
-      if (!error) setProducts(data || []);
+      try {
+        const data = await api.db.get("products", params);
+        setProducts(data || []);
+      } catch (e) {
+        console.error(e);
+      }
       setLoading(false);
     }
     load();
@@ -107,11 +112,6 @@ export default function Collections() {
           variants={containerVariants}
           initial="hidden"
           animate="show"
-          // PERUBAHAN UTAMA DI SINI:
-          // grid-cols-2 : Default 2 kolom (Mobile)
-          // md:grid-cols-3 : 3 kolom di Tablet/Laptop
-          // lg:grid-cols-4 : 4 kolom di Desktop besar
-          // gap-x-4 : Jarak antar kolom di mobile lebih rapat
           className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10"
         >
           <AnimatePresence mode="popLayout">

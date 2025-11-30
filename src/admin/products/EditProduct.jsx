@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase, uploadProductImage } from "../../lib/supabase";
+import { api } from "../../services/api";
+import { uploadProductImage } from "../../lib/uploadImage";
+import { useUser } from "../../context/UserContext";
 
 const CATEGORY_OPTIONS = [
   { value: "shirt", label: "Shirt" },
@@ -14,6 +16,7 @@ const PREDEFINED_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "All Size"];
 export default function EditProduct() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { token } = useUser();
   const [form, setForm] = useState(null);
   
   const [variants, setVariants] = useState([]);
@@ -57,21 +60,28 @@ export default function EditProduct() {
 
   useEffect(() => {
     async function loadProduct() {
-      const { data, error } = await supabase.from("products").select("*").eq("id", id).single();
-      if (error) {
+      if (!token) return;
+      try {
+        const data = await api.db.get("products", { id: `eq.${id}`, select: "*" }, token);
+        if (data && data.length > 0) {
+            const product = data[0];
+            setForm({
+                ...product,
+                price: product.price ?? "",
+            });
+            setVariants(product.variants || []);
+            setPreview(product.image_url || null);
+        } else {
+            navigate("/admin/products");
+        }
+      } catch (e) {
+        console.error(e);
         navigate("/admin/products");
-        return;
       }
-      setForm({
-        ...data,
-        price: data.price ?? "",
-      });
-      setVariants(data.variants || []);
-      setPreview(data.image_url || null);
       setLoading(false);
     }
     loadProduct();
-  }, [id, navigate]);
+  }, [id, navigate, token]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -99,11 +109,10 @@ export default function EditProduct() {
         image_url: imageUrl,
       };
 
-      const { error } = await supabase.from("products").update(payload).eq("id", id);
-      if (error) alert("Gagal menyimpan perubahan");
-      else navigate("/admin/products");
+      await api.db.update("products", id, payload, token);
+      navigate("/admin/products");
     } catch (err) {
-      alert("Terjadi kesalahan");
+      alert("Terjadi kesalahan: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -132,7 +141,6 @@ export default function EditProduct() {
              </div>
           </div>
 
-          {/* VARIANT MANAGER UI BARU */}
           <div className="bg-[#FAFAFA] p-6 rounded-[24px] border border-gray-200 space-y-6">
              <div className="flex justify-between items-center border-b border-gray-200 pb-4">
                 <div className="flex flex-col">

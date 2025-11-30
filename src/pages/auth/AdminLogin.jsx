@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAdmin } from "/src/context/AdminContext"; // Menggunakan path absolut untuk menghindari error resolusi
+import { useAdmin } from "../../context/AdminContext"; 
 import { motion } from "framer-motion";
 
 export default function AdminLogin() {
@@ -12,7 +12,7 @@ export default function AdminLogin() {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (loginAdmin(pin)) {
-      navigate("/admin"); // Sukses, masuk ke dashboard
+      navigate("/admin"); 
     } else {
       setError("Incorrect PIN. Access Denied.");
       setPin("");

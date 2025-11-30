@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
-import { supabase } from "../../lib/supabase";
+import { api } from "../../services/api";
 import ProductCard from "../../components/ProductCard";
-import { useOutletContext, Link } from "react-router-dom"; // Import Link
+import { useOutletContext, Link } from "react-router-dom"; 
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Home() {
@@ -23,18 +23,23 @@ export default function Home() {
   useEffect(() => {
     async function load() {
       setLoading(true);
-      let query = supabase
-        .from("products")
-        .select("*")
-        .gt('stock', 0)
-        .order("created_at", { ascending: false })
-        .limit(8);
+      
+      const params = {
+          select: "*",
+          "stock": "gt.0",
+          order: "created_at.desc",
+          limit: 8
+      };
 
-      if (activeCategory !== "All") query = query.eq("category", activeCategory);
-      if (search) query = query.ilike('name', `%${search}%`);
+      if (activeCategory !== "All") params.category = `eq.${activeCategory}`;
+      if (search) params.name = `ilike.%${search}%`;
 
-      const { data, error } = await query;
-      if (!error) setProducts(data || []);
+      try {
+        const data = await api.db.get("products", params);
+        setProducts(data || []);
+      } catch (e) {
+        console.error(e);
+      }
       setLoading(false);
     }
     load();
@@ -152,7 +157,7 @@ export default function Home() {
             </AnimatePresence>
           </motion.div>
 
-          {/* TOMBOL SEE ALL (Hanya muncul jika ada produk) */}
+          {/* SEE ALL */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}

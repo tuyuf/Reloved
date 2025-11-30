@@ -1,209 +1,150 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { useUser } from "./UserContext";
-import { supabase } from "../lib/supabase";
+import { api } from "../services/api";
 
 const CartContext = createContext();
 
 export function CartProvider({ children }) {
-  const { user } = useUser();
+  const { user, token } = useUser();
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // 1. LOAD CART (Database vs LocalStorage)
+  // 1. LOAD CART
   useEffect(() => {
     async function loadCart() {
-      if (user) {
+      if (user && token) {
         setLoading(true);
-        // Ambil data dari Supabase (Join dengan tabel Products)
-        const { data, error } = await supabase
-          .from("cart_items")
-          .select("quantity, size, product:products(*)")
-          .eq("user_id", user.id);
-
-        if (error) {
-          console.error("Error loading cart:", error);
-        } else if (data) {
-          // Format data dari DB agar sesuai struktur state Cart di frontend
-          const formattedCart = data.map((item) => {
-            const product = item.product;
-            
-            // Cari stok yang sesuai varian/size
-            let maxStock = product.stock;
-            if (product.variants && item.size) {
-               const variant = product.variants.find((v) => v.size === item.size);
-               if (variant) maxStock = Number(variant.stock);
-            }
-
-            return {
-              ...product,
-              quantity: item.quantity,
-              selectedSize: item.size,
-              stock: maxStock, // Penting untuk validasi
-            };
-          });
-          setCart(formattedCart);
-        }
+        try {
+          const data = await api.db.get("cart_items", {
+            select: "quantity,size,product:products(*)",
+            user_id: `eq.${user.id}`
+          }, token);
+          
+          if (data) {
+            const formatted = data.map((item) => {
+              const p = item.product;
+              let stock = p.stock;
+              if (p.variants && item.size) {
+                 const v = p.variants.find((v) => v.size === item.size);
+                 if (v) stock = Number(v.stock);
+              }
+              return { ...p, quantity: item.quantity, selectedSize: item.size, stock };
+            });
+            setCart(formatted);
+          }
+        } catch(e) { console.error(e); }
         setLoading(false);
       } else {
-        // Fallback ke LocalStorage untuk Guest
-        const savedCart = localStorage.getItem("reloved_cart_guest");
-        setCart(savedCart ? JSON.parse(savedCart) : []);
+        const saved = localStorage.getItem("reloved_cart_guest");
+        setCart(saved ? JSON.parse(saved) : []);
       }
     }
-
     loadCart();
-  }, [user]);
+  }, [user, token]);
 
-  // 2. SIMPAN KE LOCALSTORAGE (Hanya untuk Guest)
+  // 2. SYNC LOCAL STORAGE (Guest)
   useEffect(() => {
-    if (!user) {
-      localStorage.setItem("reloved_cart_guest", JSON.stringify(cart));
-    }
+    if (!user) localStorage.setItem("reloved_cart_guest", JSON.stringify(cart));
   }, [cart, user]);
 
-  // --- FUNGSI ADD TO CART ---
+  // 3. ADD TO CART
   const addToCart = async (product, quantity, size, maxStock) => {
-    // A. Update State Lokal (Optimistic UI)
+    // 1. Optimistic Update
     let newCart = [...cart];
-    const existingIndex = newCart.findIndex(
-      (item) => String(item.id) === String(product.id) && item.selectedSize === size
-    );
-
-    let finalQty = quantity;
-
-    if (existingIndex > -1) {
-      const currentQty = newCart[existingIndex].quantity;
-      const potentialQty = currentQty + quantity;
-
-      if (potentialQty > maxStock) {
-        if (currentQty < maxStock) {
-          finalQty = maxStock - currentQty; // Tambahkan sisa yg mungkin
-          newCart[existingIndex].quantity = maxStock;
-          alert(`Stok terbatas! Keranjang dimaksimalkan ke ${maxStock}.`);
-        } else {
-          alert("Keranjang sudah penuh sesuai stok tersedia.");
-          return; // Stop eksekusi
-        }
+    const idx = newCart.findIndex(i => String(i.id) === String(product.id) && i.selectedSize === size);
+    
+    if (idx > -1) {
+      const newQ = newCart[idx].quantity + quantity;
+      if (newQ > maxStock) {
+        newCart[idx].quantity = maxStock;
+        alert(`Stock limit reached. Max: ${maxStock}`);
       } else {
-        newCart[existingIndex].quantity = potentialQty;
+        newCart[idx].quantity = newQ;
       }
     } else {
-      const safeQty = Math.min(quantity, maxStock);
-      if (safeQty < quantity) alert(`Stok tersisa ${maxStock}. Jumlah disesuaikan.`);
-      
-      if (safeQty > 0) {
-        finalQty = safeQty; // Untuk dipakai di DB query
-        newCart.push({ 
-            ...product, 
-            quantity: safeQty, 
-            selectedSize: size, 
-            stock: maxStock 
-        });
-      } else {
-        return; // Stop jika qty 0
-      }
+      newCart.push({ ...product, quantity, selectedSize: size, stock: maxStock });
     }
-
     setCart(newCart);
 
-    // B. Sinkronisasi ke Supabase (Jika User Login)
-    if (user) {
-      // Kita hitung quantity total yang baru untuk item ini
-      const itemInCart = newCart.find(
-        (item) => String(item.id) === String(product.id) && item.selectedSize === size
-      );
-      const qtyToSave = itemInCart.quantity;
-
-      const { error } = await supabase.from("cart_items").upsert(
-        {
+    // 2. API Sync
+    if (user && token) {
+      const item = newCart.find(i => String(i.id) === String(product.id) && i.selectedSize === size);
+      // Upsert: merge duplicates based on unique constraint
+      try {
+        await api.db.upsert("cart_items", {
           user_id: user.id,
           product_id: product.id,
           size: size,
-          quantity: qtyToSave,
-        },
-        { onConflict: "user_id, product_id, size" } // Kunci unique constraint
-      );
-
-      if (error) console.error("Gagal simpan ke DB:", error);
-    }
-  };
-
-  // --- FUNGSI REMOVE ---
-  const removeFromCart = async (id, size) => {
-    // Update Lokal
-    setCart((prev) => prev.filter((item) => !(String(item.id) === String(id) && item.selectedSize === size)));
-
-    // Update DB
-    if (user) {
-      let query = supabase
-        .from("cart_items")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("product_id", id);
-      
-      if (size) query = query.eq("size", size);
-      else query = query.is("size", null);
-
-      const { error } = await query;
-      if (error) console.error("Gagal hapus dari DB:", error);
-    }
-  };
-
-  // --- FUNGSI UPDATE QUANTITY ---
-  const updateQuantity = async (id, size, delta) => {
-    let newQty = 0;
-    
-    // Update Lokal
-    const newCart = cart.map((item) => {
-      if (String(item.id) === String(id) && item.selectedSize === size) {
-        const maxLimit = item.stock || 999;
-        const calculatedQty = item.quantity + delta;
-
-        if (calculatedQty > maxLimit) {
-          alert(`Maksimal stok tersedia: ${maxLimit}`);
-          newQty = item.quantity;
-          return item;
-        }
-        if (calculatedQty < 1) {
-          newQty = 0; // Tanda untuk dihapus nanti jika perlu, tapi logic UI biasanya menahan di 1
-          return item;
-        }
-        
-        newQty = calculatedQty;
-        return { ...item, quantity: calculatedQty };
+          quantity: item.quantity
+        }, "user_id,product_id,size", token);
+      } catch (e) {
+        console.error("Add to cart failed", e);
       }
-      return item;
-    });
+    }
+  };
 
+  // 4. REMOVE
+  const removeFromCart = async (id, size) => {
+    setCart(prev => prev.filter(i => !(String(i.id) === String(id) && i.selectedSize === size)));
+    
+    if (user && token) {
+       const params = { user_id: `eq.${user.id}`, product_id: `eq.${id}` };
+       if (size) params.size = `eq.${size}`;
+       else params.size = `is.null`;
+       
+       try {
+         await api.db.deleteWhere("cart_items", params, token);
+       } catch (e) {
+         console.error("Remove failed", e);
+       }
+    }
+  };
+
+  // 5. UPDATE QUANTITY
+  const updateQuantity = async (id, size, delta) => {
+    // Update Local
+    let newQty = 0;
+    const newCart = cart.map(item => {
+       if(String(item.id) === String(id) && item.selectedSize === size) {
+         newQty = item.quantity + delta;
+         if (newQty < 1) newQty = 1; // Prevent 0
+         if (newQty > item.stock) newQty = item.stock; // Check stock
+         return { ...item, quantity: newQty };
+       }
+       return item;
+    });
     setCart(newCart);
 
     // Update DB
-    if (user && newQty > 0) {
-      let query = supabase
-        .from("cart_items")
-        .update({ quantity: newQty })
-        .eq("user_id", user.id)
-        .eq("product_id", id);
-
-      if (size) query = query.eq("size", size);
-      else query = query.is("size", null);
-
-      await query;
+    if (user && token && newQty > 0) {
+       const params = { user_id: `eq.${user.id}`, product_id: `eq.${id}` };
+       if (size) params.size = `eq.${size}`;
+       else params.size = `is.null`;
+       
+       try {
+         await api.db.updateWhere("cart_items", params, { quantity: newQty }, token);
+       } catch(e) {
+         console.error("Update quantity failed", e);
+       }
     }
   };
 
-  // --- FUNGSI CLEAR CART ---
+  // 6. CLEAR CART
   const clearCart = async () => {
     setCart([]);
-    if (user) {
-      await supabase.from("cart_items").delete().eq("user_id", user.id);
+    if (user && token) {
+      try {
+        await api.db.deleteWhere("cart_items", { user_id: `eq.${user.id}` }, token);
+      } catch (e) {
+        console.error("Clear cart failed", e);
+      }
     } else {
       localStorage.removeItem("reloved_cart_guest");
     }
   };
 
   return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, setCart, clearCart, loading }}>
+    <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart, loading, setCart }}>
       {children}
     </CartContext.Provider>
   );

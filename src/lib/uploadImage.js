@@ -1,58 +1,19 @@
-import { supabase } from "/src/lib/supabase"; // Use absolute path
+import { api } from "../services/api";
 
 export async function uploadProductImage(file) {
   if (!file) return null;
+  const token = localStorage.getItem("reloved_token");
+  if (!token) return alert("Login required"), null;
 
-  const fileExt = file.name.split(".").pop();
-  const fileName = `${Date.now()}.${fileExt}`;
-  const filePath = `${fileName}`;
-
-  const { error: uploadError } = await supabase.storage
-    .from("product-images")
-    .upload(filePath, file, {
-      cacheControl: "3600",
-      upsert: false,
-    });
-
-  if (uploadError) {
-    console.error("Upload error:", uploadError);
-    return null;
-  }
-
-  const { data } = supabase.storage
-    .from("product-images")
-    .getPublicUrl(filePath);
-
-  return data.publicUrl;
+  const ext = file.name.split(".").pop();
+  const name = `${Date.now()}.${ext}`;
+  return await api.storage.upload("product-images", name, file, token);
 }
 
-// FUNGSI BARU: Upload Avatar
 export async function uploadAvatar(file, userId) {
   if (!file) return null;
-
-  const fileExt = file.name.split(".").pop();
-  // Gunakan ID user agar file tidak menumpuk (overwrite file lama user ini)
-  const fileName = `${userId}_${Date.now()}.${fileExt}`;
-  
-  // Kita simpan di bucket 'avatars' yang baru dibuat
-  const filePath = `${fileName}`; 
-
-  const { error: uploadError } = await supabase.storage
-    .from("avatars") // Bucket khusus avatar
-    .upload(filePath, file, {
-      cacheControl: "3600",
-      upsert: true,
-    });
-
-  if (uploadError) {
-    console.error("Upload avatar error:", uploadError);
-    alert("Gagal upload foto: " + uploadError.message);
-    return null;
-  }
-
-  const { data } = supabase.storage
-    .from("avatars")
-    .getPublicUrl(filePath);
-
-  return data.publicUrl;
+  const token = localStorage.getItem("reloved_token");
+  const ext = file.name.split(".").pop();
+  const name = `${userId}_${Date.now()}.${ext}`;
+  return await api.storage.upload("avatars", name, file, token);
 }

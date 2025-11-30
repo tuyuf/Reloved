@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { api } from "../../services/api";
 import { formatPrice } from "../../lib/format";
+import { useUser } from "../../context/UserContext";
 
 export default function AdminDashboard() {
+  const { token } = useUser();
   const [stats, setStats] = useState({
     revenue: 0,
     totalProducts: 0,
@@ -20,40 +22,44 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function loadStats() {
-      // 1. Hitung Produk
-      const { count: productsCount } = await supabase
-        .from("products")
-        .select("*", { count: "exact", head: true });
+      // Return early if no token (though AdminLayout protects this, it's safer)
+      if (!token) return;
 
-      // 2. Ambil Data Pesanan
-      const { data: orders } = await supabase
-        .from("orders")
-        .select("total_price, status");
+      try {
+        // 1. Get Product Count (Fetch IDs only to minimize bandwidth)
+        const products = await api.db.get("products", { select: "id" }, token);
 
-      const totalOrders = orders?.length || 0;
-      
-      // Hitung Revenue (Hanya dari yang sudah dibayar/selesai)
-      const revenue = orders
-        ?.filter((o) => ["paid", "processed", "shipped", "completed"].includes(o.status))
-        .reduce((sum, o) => sum + (o.total_price || 0), 0);
+        // 2. Get Orders Data
+        const orders = await api.db.get("orders", { select: "total_price,status" }, token);
 
-      // Hitung per Status
-      const statusCounts = orders?.reduce((acc, order) => {
-        const status = order.status || "pending";
-        acc[status] = (acc[status] || 0) + 1;
-        return acc;
-      }, { pending: 0, paid: 0, processed: 0, shipped: 0, completed: 0, cancelled: 0 });
+        const totalOrders = orders?.length || 0;
+        
+        // Calculate Revenue (paid/completed/shipped/processed)
+        const revenue = orders
+          ?.filter((o) => ["paid", "processed", "shipped", "completed"].includes(o.status))
+          .reduce((sum, o) => sum + (o.total_price || 0), 0);
 
-      setStats({
-        revenue: revenue || 0,
-        totalProducts: productsCount || 0,
-        totalOrders,
-        statusCounts: statusCounts || {},
-      });
-      setLoading(false);
+        // Calculate Status Counts
+        const statusCounts = orders?.reduce((acc, order) => {
+          const status = order.status || "pending";
+          acc[status] = (acc[status] || 0) + 1;
+          return acc;
+        }, { pending: 0, paid: 0, processed: 0, shipped: 0, completed: 0, cancelled: 0 });
+
+        setStats({
+          revenue: revenue || 0,
+          totalProducts: products?.length || 0,
+          totalOrders,
+          statusCounts: statusCounts || {},
+        });
+      } catch (error) {
+        console.error("Dashboard load failed", error);
+      } finally {
+        setLoading(false);
+      }
     }
     loadStats();
-  }, []);
+  }, [token]);
 
   if (loading) return <div className="p-20 text-center text-gray-400 italic font-serif">Loading dashboard...</div>;
 

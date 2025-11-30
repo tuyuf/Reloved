@@ -1,15 +1,13 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
+import { api } from "../../services/api";
 import { useCart } from "../../context/CartContext";
 import { useUser } from "../../context/UserContext"; 
 import { formatPrice } from "../../lib/format";
-import { motion } from "framer-motion";
 
 export default function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  // Ambil cart & addToCart dari context
   const { addToCart, cart } = useCart();
   const { user } = useUser();
   
@@ -24,23 +22,26 @@ export default function ProductDetail() {
   // 1. LOAD DATA PRODUK
   useEffect(() => {
     async function loadProduct() {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .eq("id", id)
-        .single();
+      try {
+        const data = await api.db.get("products", { id: `eq.${id}`, select: "*" });
+        
+        if (!data || data.length === 0) {
+            navigate("/collections");
+            return;
+        }
 
-      if (error) {
-        navigate("/collections");
-      } else {
-        setProduct(data);
-        if (data.variants && data.variants.length > 0) {
-           const availableVariant = data.variants.find(v => Number(v.stock) > 0) || data.variants[0];
+        const productData = data[0];
+        setProduct(productData);
+        
+        if (productData.variants && productData.variants.length > 0) {
+           const availableVariant = productData.variants.find(v => Number(v.stock) > 0) || productData.variants[0];
            setSelectedSize(availableVariant.size);
            setCurrentStock(Number(availableVariant.stock));
         } else {
-           setCurrentStock(Number(data.stock) || 0);
+           setCurrentStock(Number(productData.stock) || 0);
         }
+      } catch (e) {
+        navigate("/collections");
       }
       setLoading(false);
     }
@@ -57,33 +58,24 @@ export default function ProductDetail() {
      }
   }, [selectedSize, product]);
 
-  // --- LOGIKA HITUNG JUMLAH DI KERANJANG (REALTIME) ---
   const qtyInCart = cart.reduce((total, item) => {
-      // Pastikan ID & Size cocok (ID dikonversi ke string biar aman)
       const isMatch = String(item.id) === String(id) && item.selectedSize === selectedSize;
       return isMatch ? total + (item.quantity || 0) : total;
   }, 0);
 
-  // Stok yang BELUM diambil oleh user
   const remainingStock = Math.max(0, currentStock - qtyInCart);
-  
-  // Status: Apakah stok sudah ludes di keranjang user?
-  // (Jika stok 2, di keranjang 2, maka isCartFull = true)
   const isCartFull = qtyInCart >= currentStock && currentStock > 0;
 
   const handleAdd = () => {
     if (!user) return navigate("/auth/login");
     if (product.variants?.length > 0 && !selectedSize) return alert("Select a size");
 
-    // Double Check sebelum kirim ke Context
     if (qtyInCart >= currentStock) {
         alert("Stok sudah habis (ada di keranjang Anda).");
         return;
     }
 
     setAdding(true);
-    
-    // Kirim currentStock sebagai parameter ke-4 agar Context bisa memvalidasi
     addToCart(product, qty, selectedSize, currentStock);
     
     setTimeout(() => {
@@ -150,13 +142,12 @@ export default function ProductDetail() {
           )}
 
           <div className="mt-auto pt-6 space-y-4">
-             {/* Quantity Selector: Hilang jika stok di keranjang sudah penuh */}
+             {/* Quantity Selector */}
              {!isCartFull && currentStock > 0 && (
                  <div className="flex items-center gap-4">
                     <div className="flex items-center border border-gray-200 rounded-xl h-14 w-32">
                         <button onClick={() => setQty(q => Math.max(1, q - 1))} className="flex-1 h-full hover:bg-gray-50 rounded-l-xl text-lg">-</button>
                         <span className="font-bold w-8 text-center">{qty}</span>
-                        {/* Batasi tombol + agar tidak melebihi sisa */}
                         <button onClick={() => setQty(q => Math.min(remainingStock, q + 1))} className="flex-1 h-full hover:bg-gray-50 rounded-r-xl text-lg">+</button>
                     </div>
                     <span className="text-xs text-gray-400">Max add: {remainingStock}</span>
@@ -171,7 +162,6 @@ export default function ProductDetail() {
 
              <button
                 onClick={handleAdd}
-                // DISABLE JIKA: User login DAN (Stok 0 ATAU Cart Penuh ATAU Loading)
                 disabled={user && (currentStock <= 0 || isCartFull || adding)}
                 className={`w-full h-14 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
                     user && (currentStock <= 0 || isCartFull || adding)

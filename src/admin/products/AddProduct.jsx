@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
+import { api } from "../../services/api";
+import { uploadProductImage } from "../../lib/uploadImage";
+import { useUser } from "../../context/UserContext";
 
 const CATEGORY_OPTIONS = [
   { value: "shirt", label: "Shirt" },
@@ -13,6 +15,7 @@ const PREDEFINED_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "All Size"];
 
 export default function AddProduct() {
   const navigate = useNavigate();
+  const { token } = useUser();
 
   const [form, setForm] = useState({
     name: "",
@@ -60,26 +63,6 @@ export default function AddProduct() {
     setVariants(prev => prev.filter(v => v.size !== sizeToDelete));
   }
 
-  async function uploadImage() {
-    if (!imageFile) return null;
-    const fileExt = imageFile.name.split(".").pop();
-    const fileName = `product_${Date.now()}.${fileExt}`;
-    const filePath = `${fileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("product-images")
-      .upload(filePath, imageFile);
-
-    if (uploadError) {
-      console.error(uploadError);
-      alert("Gagal upload gambar");
-      return null;
-    }
-
-    const { data } = supabase.storage.from("product-images").getPublicUrl(filePath);
-    return data.publicUrl;
-  }
-
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.name || !form.price) return alert("Nama dan harga wajib diisi");
@@ -89,9 +72,9 @@ export default function AddProduct() {
 
     try {
       let imageUrl = null;
-      if (imageFile) imageUrl = await uploadImage();
+      if (imageFile) imageUrl = await uploadProductImage(imageFile);
 
-      const { error } = await supabase.from("products").insert({
+      await api.db.insert("products", {
         name: form.name,
         price: Number(form.price),
         condition: form.condition || null,
@@ -100,19 +83,18 @@ export default function AddProduct() {
         stock: totalStock,
         variants: variants,
         image_url: imageUrl,
-      });
+      }, token);
 
-      if (error) alert("Gagal menyimpan produk: " + error.message);
-      else navigate("/admin/products");
+      navigate("/admin/products");
     } catch (err) {
-      alert("Terjadi kesalahan");
+      console.error(err);
+      alert("Terjadi kesalahan: " + err.message);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    // Container utama tanpa fixed height agar bisa di-scroll
     <div className="w-full pb-32">
       <div className="flex items-center justify-between mb-8">
         <div>

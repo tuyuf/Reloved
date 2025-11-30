@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { api } from "../../services/api";
 import { formatPrice, formatDate } from "../../lib/format";
 import { Link } from "react-router-dom";
+import { useUser } from "../../context/UserContext";
 
 export default function AdminOrders() {
+  const { token } = useUser();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("All");
@@ -20,21 +22,27 @@ export default function AdminOrders() {
 
   async function loadOrders() {
     setLoading(true);
-    let query = supabase
-      .from("orders")
-      .select(`*, order_items (quantity, products (name))`)
-      .order("created_at", { ascending: false });
+    if (!token) return;
+
+    const params = {
+        select: `*, order_items (quantity, products (name))`,
+        order: "created_at.desc"
+    };
 
     if (activeTab !== "All") {
-      query = query.eq("status", activeTab);
+      params.status = `eq.${activeTab}`;
     }
 
-    const { data, error } = await query;
-    if (!error) setOrders(data || []);
+    try {
+      const data = await api.db.get("orders", params, token);
+      setOrders(data || []);
+    } catch (e) {
+      console.error(e);
+    }
     setLoading(false);
   }
 
-  useEffect(() => { loadOrders(); }, [activeTab]);
+  useEffect(() => { loadOrders(); }, [activeTab, token]);
 
   async function handleStatusChange(orderId, newStatus) {
     let additionalData = {};
@@ -44,13 +52,12 @@ export default function AdminOrders() {
         additionalData.tracking_number = resi;
     }
 
-    const { error } = await supabase
-        .from('orders')
-        .update({ status: newStatus, ...additionalData })
-        .eq('id', orderId);
-
-    if (error) alert("Gagal update status");
-    else loadOrders();
+    try {
+      await api.db.update("orders", orderId, { status: newStatus, ...additionalData }, token);
+      loadOrders();
+    } catch (e) {
+      alert("Gagal update status");
+    }
   }
 
   const getStatusBadge = (status) => {
@@ -65,8 +72,6 @@ export default function AdminOrders() {
     }
   };
 
-  // PERBAIKAN: Hapus 'h-screen' atau pembatas tinggi statis. Biarkan container mengalir (flow).
-  // AdminLayout sudah menangani scroll container utama.
   return (
     <div className="space-y-8 pb-20 w-full">
       {/* HEADER */}
@@ -100,7 +105,6 @@ export default function AdminOrders() {
       </div>
 
       {/* TABLE CONTAINER */}
-      {/* Tambahkan overflow-x-auto agar tabel bisa di-scroll horizontal di layar kecil */}
       <div className="w-full overflow-hidden">
         {loading ? (
           <div className="py-20 text-center text-gray-400 italic font-serif">Loading orders...</div>
@@ -114,7 +118,7 @@ export default function AdminOrders() {
         ) : (
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="overflow-x-auto custom-scrollbar">
-              <table className="w-full text-sm text-left min-w-[800px]"> {/* Min-width agar tabel tidak gepeng */}
+              <table className="w-full text-sm text-left min-w-[800px]"> 
                 <thead className="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-widest font-bold border-b border-gray-100">
                   <tr>
                     <th className="px-6 py-4 whitespace-nowrap">ID</th>

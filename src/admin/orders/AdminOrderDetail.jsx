@@ -1,33 +1,39 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
+import { api } from "../../services/api";
 import { formatPrice, formatDate } from "../../lib/format";
+import { useUser } from "../../context/UserContext";
 
 export default function AdminOrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { token } = useUser();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadOrder() {
-      const { data, error } = await supabase
-        .from("orders")
-        .select(`*, order_items (quantity, price, products (name, image_url))`)
-        .eq("id", id)
-        .single();
+      if (!token) return;
+      try {
+        const data = await api.db.get("orders", {
+            id: `eq.${id}`,
+            select: `*, order_items (quantity, price, products (name, image_url))`
+        }, token);
 
-      if (error) {
+        if (data && data.length > 0) {
+            setOrder(data[0]);
+        } else {
+            alert("Pesanan tidak ditemukan");
+            navigate("/admin/orders");
+        }
+      } catch (error) {
         console.error(error);
-        alert("Pesanan tidak ditemukan");
         navigate("/admin/orders");
-      } else {
-        setOrder(data);
       }
       setLoading(false);
     }
     loadOrder();
-  }, [id, navigate]);
+  }, [id, navigate, token]);
 
   if (loading) return <div className="p-20 text-center text-gray-400 italic font-serif">Loading detail...</div>;
   if (!order) return null;
@@ -109,7 +115,7 @@ export default function AdminOrderDetail() {
             </div>
           </div>
 
-          {/* Shipping Address - FOKUS UTAMA */}
+          {/* Shipping Address */}
           <div className="bg-[#FDFDFD] p-6 rounded-xl border border-gray-200 shadow-sm relative overflow-hidden">
             <div className="absolute top-0 left-0 w-1 h-full bg-black"></div>
             <h3 className="font-serif text-lg mb-4 pb-2 border-b border-gray-100 text-[#111] flex items-center gap-2">

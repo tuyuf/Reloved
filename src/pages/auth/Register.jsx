@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "/src/lib/supabase";
+import { api } from "../../services/api"; // Updated import
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
@@ -31,33 +31,28 @@ export default function Register() {
 
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
-      options: {
-        data: {
+    try {
+      await api.auth.signUp(form.email, form.password, {
           first_name: form.firstName,
           last_name: form.lastName,
           phone: form.phone,
           address: form.address,
           city: form.city
-        }
-      }
-    });
-
-    setLoading(false);
-    if (error) {
-        setErr(error.message);
-    } else {
-        alert("Registrasi berhasil! Silakan login.");
-        navigate("/auth/login");
+      });
+      
+      setLoading(false);
+      alert("Registrasi berhasil! Silakan login.");
+      navigate("/auth/login");
+    } catch (error) {
+      setLoading(false);
+      setErr(error.message);
     }
   };
 
   return (
     <div className="flex min-h-screen w-full bg-white">
       
-      {/* BAGIAN KIRI: FORM */}
+      {/* Left Side: Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 md:p-12 relative overflow-y-auto">
         <motion.div 
           initial={{ opacity: 0, x: -20 }}
@@ -75,8 +70,6 @@ export default function Register() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            
-            {/* GRID NAMA */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">First Name *</label>
@@ -174,7 +167,7 @@ export default function Register() {
         </motion.div>
       </div>
 
-      {/* BAGIAN KANAN: GAMBAR (Hanya Desktop) */}
+      {/* Right Side: Image */}
       <div className="hidden lg:block lg:w-1/2 relative overflow-hidden bg-[#EAE8E6]">
         <motion.div 
           initial={{ scale: 1.1, opacity: 0 }}

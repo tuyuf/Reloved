@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useCart } from "../context/CartContext";
 import { formatPrice } from "../lib/format";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
+import { api } from "../services/api"; // Updated import
 
 export default function CartSidebar({ onClose }) {
   const { cart, removeFromCart } = useCart();
@@ -14,26 +14,39 @@ export default function CartSidebar({ onClose }) {
   const tax = subtotal * 0.11; 
   const total = subtotal + tax;
 
-  // Cek stok real-time mirip Cart.jsx
+  // Real-time stock check replacement
   useEffect(() => {
     async function fetchLatestStocks() {
       if (cart.length === 0) {
         setLoadingStocks(false);
         return;
       }
+
       const productIds = [...new Set(cart.map(item => item.id))];
-      const { data } = await supabase.from('products').select('id, stock, variants').in('id', productIds);
-      if (data) {
-        const stockMap = {};
-        data.forEach(p => stockMap[p.id] = p);
-        setLatestStocks(stockMap);
+      
+      try {
+        // REST API 'IN' filter syntax: id=in.(1,2,3)
+        const idFilter = `(${productIds.join(',')})`;
+        
+        const data = await api.db.get("products", {
+            select: "id,stock,variants",
+            id: `in.${idFilter}`
+        });
+
+        if (data) {
+          const stockMap = {};
+          data.forEach(p => stockMap[p.id] = p);
+          setLatestStocks(stockMap);
+        }
+      } catch (error) {
+        console.error("Stock fetch error:", error);
       }
       setLoadingStocks(false);
     }
     fetchLatestStocks();
   }, [cart]);
 
-  // Validasi
+  // Validation Logic (Unchanged)
   const hasStockIssue = cart.some(item => {
      const productData = latestStocks[item.id];
      if (!productData) return false;
@@ -60,7 +73,6 @@ export default function CartSidebar({ onClose }) {
           <div className="text-center text-gray-400 text-sm mt-10">No items yet.</div>
         ) : (
           cart.map((item, idx) => {
-             // Logic cek stok per item untuk UI merah
              const productData = latestStocks[item.id];
              let isEnough = true;
              let available = 999;

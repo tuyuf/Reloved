@@ -1,0 +1,157 @@
+openapi: 3.0.0
+info:
+  title: ReLoved API Documentation
+  description: Dokumentasi REST API untuk platform e-commerce ReLoved. Menggunakan protokol Supabase REST.
+  version: 1.0.0
+servers:
+  - url: https://wwxltrkjxroxuwfkmhbr.supabase.co
+    description: Production Server (Supabase)
+
+components:
+  securitySchemes:
+    apikey:
+      type: apiKey
+      in: header
+      name: apikey
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - apikey: []
+  - BearerAuth: []
+
+tags:
+  - name: Auth
+    description: Autentikasi Pengguna
+  - name: Products
+    description: Manajemen Produk
+  - name: Orders
+    description: Transaksi dan Pesanan
+  - name: Cart
+    description: Keranjang Belanja
+
+paths:
+  # --- AUTHENTICATION ---
+  /auth/v1/signup:
+    post:
+      tags: [Auth]
+      summary: Registrasi User Baru
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string }
+                password: { type: string }
+                data:
+                  type: object
+                  properties:
+                    first_name: { type: string }
+                    last_name: { type: string }
+      responses:
+        '200':
+          description: Berhasil mendaftar
+
+  /auth/v1/token?grant_type=password:
+    post:
+      tags: [Auth]
+      summary: Login User (Get Token)
+      parameters:
+        - in: query
+          name: grant_type
+          schema: { type: string, default: password }
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: Login berhasil, mengembalikan Access Token
+
+  # --- PRODUCTS ---
+  /rest/v1/products:
+    get:
+      tags: [Products]
+      summary: Ambil Semua Produk
+      parameters:
+        - in: query
+          name: select
+          schema: { type: string, default: "*" }
+        - in: query
+          name: order
+          schema: { type: string, default: "created_at.desc" }
+        - in: query
+          name: limit
+          schema: { type: integer }
+      responses:
+        '200':
+          description: List produk
+    
+    post:
+      tags: [Products]
+      summary: Tambah Produk (Admin)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                price: { type: number }
+                stock: { type: integer }
+                category: { type: string }
+                variants: { type: array }
+      responses:
+        '201':
+          description: Produk dibuat
+
+  # --- ORDERS ---
+  /rest/v1/orders:
+    get:
+      tags: [Orders]
+      summary: List Pesanan
+      parameters:
+        - in: query
+          name: user_id
+          schema: { type: string, example: "eq.USER_ID_HERE" }
+      responses:
+        '200':
+          description: History pesanan user
+    
+    post:
+      tags: [Orders]
+      summary: Buat Pesanan Baru
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id: { type: string }
+                total_price: { type: number }
+                shipping_address: { type: string }
+                status: { type: string, default: "pending" }
+      responses:
+        '201':
+          description: Order berhasil dibuat
+
+  # --- CART ---
+  /rest/v1/cart_items:
+    get:
+      tags: [Cart]
+      summary: Lihat Keranjang
+      parameters:
+        - in: query
+          name: user_id
+          schema: { type: string, example: "eq.USER_ID" }
+      responses:
+        '200':
+          description: Item keranjang

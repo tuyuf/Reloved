@@ -3,7 +3,7 @@ import { useCart } from "../../context/CartContext";
 import { Link, useNavigate } from "react-router-dom";
 import { formatPrice } from "../../lib/format";
 import { motion } from "framer-motion";
-import { supabase } from "../../lib/supabase"; 
+import { api } from "../../services/api"; // Updated import
 
 export default function Cart() {
   const { cart, removeFromCart, updateQuantity } = useCart();
@@ -18,19 +18,27 @@ export default function Cart() {
         return;
       }
 
+      // Extract unique IDs
       const productIds = [...new Set(cart.map(item => item.id))];
+      
+      // REST API: Filter using 'in' operator
+      const idFilter = `(${productIds.join(',')})`;
 
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, stock, variants')
-        .in('id', productIds);
-
-      if (!error && data) {
-        const stockMap = {};
-        data.forEach(p => {
-          stockMap[p.id] = p;
+      try {
+        const data = await api.db.get("products", {
+            select: "id,stock,variants",
+            id: `in.${idFilter}`
         });
-        setLatestStocks(stockMap);
+
+        if (data) {
+            const stockMap = {};
+            data.forEach(p => {
+                stockMap[p.id] = p;
+            });
+            setLatestStocks(stockMap);
+        }
+      } catch (error) {
+        console.error("Failed to fetch stocks", error);
       }
       setLoadingStocks(false);
     }
@@ -64,7 +72,6 @@ export default function Cart() {
   });
 
   return (
-    // FIX: Tambahkan pt-24 (mobile) dan md:pt-12 (desktop)
     <motion.div 
       initial={{ opacity: 0 }} animate={{ opacity: 1 }}
       className="w-full max-w-[1200px] mx-auto pb-20 px-4 sm:px-6 pt-24 md:pt-12"

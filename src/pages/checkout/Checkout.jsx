@@ -3,12 +3,11 @@ import { useCart } from "../../context/CartContext";
 import { useUser } from "../../context/UserContext"; 
 import { useNavigate } from "react-router-dom";
 import { formatPrice } from "../../lib/format";
-import { supabase } from "../../lib/supabase";
+import { api } from "../../services/api"; // Updated import
 
 export default function Checkout() {
-  // PERBAIKAN: Ambil 'clearCart' dari context, bukan 'setCart'
   const { cart, clearCart } = useCart();
-  const { user } = useUser();
+  const { user, token } = useUser();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [isOrderPlaced, setIsOrderPlaced] = useState(false);
@@ -45,21 +44,17 @@ export default function Checkout() {
     setLoading(true);
 
     try {
-      // 1. VALIDASI STOK PER SIZE (Sama seperti sebelumnya)
+      // 1. VALIDASI STOK PER SIZE (Manually checking latest stock)
       const updatesMap = new Map();
 
       for (const item of cart) {
          let productData = updatesMap.get(item.id)?.productData;
          
          if (!productData) {
-            const { data, error } = await supabase
-               .from('products')
-               .select('*')
-               .eq('id', item.id)
-               .single();
-            
-            if (error || !data) throw new Error(`Produk "${item.name}" tidak ditemukan.`);
-            productData = data;
+            // Fetch single product via API
+            const products = await api.db.get('products', { id: `eq.${item.id}`, select: '*' });
+            if (!products || products.length === 0) throw new Error(`Produk "${item.name}" tidak ditemukan.`);
+            productData = products[0];
          }
 
          if (productData.variants && productData.variants.length > 0) {
@@ -97,9 +92,8 @@ export default function Checkout() {
       }
 
       // 2. BUAT ORDER
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .insert({
+      // API Insert returns an array of inserted objects
+      const insertedOrder = await api.db.insert('orders', {
           user_id: user?.id || null,
           customer_name: `${form.firstName} ${form.lastName}`,
           customer_email: form.email, 
@@ -107,38 +101,35 @@ export default function Checkout() {
           shipping_address: `${form.address}, ${form.city}`,
           total_price: total,
           status: 'pending' 
-        })
-        .select()
-        .single();
+      }, token);
 
-      if (orderError) throw orderError;
+      const orderId = insertedOrder[0].id;
 
       // 3. MASUKKAN ORDER ITEMS
       const itemsToInsert = cart.map(item => ({
-        order_id: orderData.id,
+        order_id: orderId,
         product_id: item.id,
         price: Number(item.price),
         quantity: item.quantity,
         size: item.selectedSize
       }));
 
-      const { error: itemsError } = await supabase.from('order_items').insert(itemsToInsert);
-      if (itemsError) throw itemsError;
+      await api.db.insert('order_items', itemsToInsert, token);
 
       // 4. UPDATE STOK
       for (const [productId, updateData] of updatesMap.entries()) {
          const { newVariants, newTotalStock } = updateData;
          const payload = { stock: newTotalStock };
          if (newVariants) payload.variants = newVariants;
-         await supabase.from('products').update(payload).eq('id', productId);
+         
+         await api.db.update('products', productId, payload, token);
       }
 
       // SUKSES
-      setSavedOrderId(orderData.id);
+      setSavedOrderId(orderId);
       setFinalTotal(total);
       setIsOrderPlaced(true);
       
-      // PERBAIKAN UTAMA: Gunakan clearCart() agar data di DB juga terhapus
       await clearCart(); 
       
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -151,7 +142,7 @@ export default function Checkout() {
     }
   };
 
-  // UI (Tidak berubah)
+  // UI Code Remains Same
   if (cart.length === 0 && !isOrderPlaced) {
     return (
       <div className="w-full max-w-[1200px] mx-auto pb-20 px-4 sm:px-6 pt-32 text-center">

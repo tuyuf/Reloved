@@ -1,21 +1,17 @@
 import { useState, useEffect } from "react";
-import { useUser } from "/src/context/UserContext"; // Absolute path
-import { supabase } from "/src/lib/supabase";       // Absolute path
-import { uploadAvatar } from "/src/lib/uploadImage"; // Absolute path
+import { useUser } from "../../context/UserContext"; 
+import { uploadAvatar } from "../../lib/uploadImage"; 
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
 export default function Profile() {
-  const { user } = useUser();
+  const { user, token, updateProfile, logout } = useUser();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [avatarFile, setAvatarFile] = useState(null);
-  
-  // State preview terpisah agar responsif saat ganti file
   const [avatarPreview, setAvatarPreview] = useState(null);
 
-  // State form data
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -25,7 +21,6 @@ export default function Profile() {
     avatar_url: ""
   });
 
-  // Load data awal
   useEffect(() => {
     if (user) {
       const meta = user.user_metadata || {};
@@ -37,8 +32,6 @@ export default function Profile() {
         city: meta.city || "",
         avatar_url: meta.avatar_url || ""
       });
-      
-      // Set preview dari URL yang ada di database
       setAvatarPreview(meta.avatar_url || null);
     }
   }, [user]);
@@ -47,19 +40,14 @@ export default function Profile() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Handle saat user memilih file foto baru
   const handleAvatarChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    // Validasi ukuran (misal max 2MB)
     if (file.size > 2 * 1024 * 1024) {
         alert("Ukuran file terlalu besar (Maks 2MB)");
         return;
     }
-
     setAvatarFile(file);
-    // Buat URL sementara untuk preview instan
     setAvatarPreview(URL.createObjectURL(file));
   };
 
@@ -70,44 +58,25 @@ export default function Profile() {
     try {
       let finalAvatarUrl = formData.avatar_url;
 
-      // 1. Upload foto ke Storage (jika ada file baru dipilih)
-      if (avatarFile) {
+      if (avatarFile && user) {
         const uploadedUrl = await uploadAvatar(avatarFile, user.id);
         if (uploadedUrl) {
             finalAvatarUrl = uploadedUrl;
         }
       }
 
-      // 2. Update metadata user di Supabase Auth
-      const { data, error } = await supabase.auth.updateUser({
-        data: {
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          phone: formData.phone,
-          address: formData.address,
-          city: formData.city,
-          avatar_url: finalAvatarUrl // Simpan URL baru
-        }
-      });
-
-      if (error) throw error;
-
-      alert("Profil berhasil diperbarui!");
-      setIsEditing(false); 
-      
-      // Update state lokal dengan data terbaru dari server (agar sinkron)
-      if (data?.user) {
-          const meta = data.user.user_metadata;
-          setFormData({
-            firstName: meta.first_name,
-            lastName: meta.last_name,
-            phone: meta.phone,
-            address: meta.address,
-            city: meta.city,
-            avatar_url: meta.avatar_url
+      if (token) {
+          await updateProfile({
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            phone: formData.phone,
+            address: formData.address,
+            city: formData.city,
+            avatar_url: finalAvatarUrl 
           });
+          alert("Profil berhasil diperbarui!");
+          setIsEditing(false);
       }
-
     } catch (error) {
       console.error("Error updating profile:", error.message);
       alert("Gagal memperbarui profil: " + error.message);
@@ -117,7 +86,7 @@ export default function Profile() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await logout();
     navigate("/auth/login");
   };
 
@@ -141,7 +110,7 @@ export default function Profile() {
                      src={avatarPreview} 
                      alt="Profile" 
                      className="w-full h-full object-cover" 
-                     key={avatarPreview} // Force re-render saat URL berubah
+                     key={avatarPreview} 
                    />
                 ) : (
                    <span className="font-serif text-4xl italic text-black font-bold">
@@ -150,7 +119,6 @@ export default function Profile() {
                 )}
              </div>
              
-             {/* Edit Overlay (Hanya muncul saat mode edit) */}
              {isEditing && (
                <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity z-10">
                   <div className="text-center text-white">
@@ -161,7 +129,6 @@ export default function Profile() {
                </label>
              )}
 
-             {/* Badge Member (Hanya muncul saat TIDAK edit) */}
              {!isEditing && (
                <div className="absolute -bottom-3 right-0 left-0 mx-auto w-fit bg-black text-white text-[9px] px-3 py-1 rounded-full uppercase tracking-widest font-bold border-4 border-white shadow-sm z-20">
                   Member
@@ -234,7 +201,6 @@ export default function Profile() {
                 type="button"
                 onClick={() => {
                    setIsEditing(false);
-                   // Reset preview ke gambar asli (jika user batal ganti foto)
                    setAvatarPreview(user.user_metadata?.avatar_url || null);
                    setAvatarFile(null);
                 }}
