@@ -42,8 +42,26 @@ export function UserProvider({ children }) {
     setUser(null);
   };
 
+  // --- TAMBAHKAN FUNGSI INI ---
+  const updateProfile = async (updates) => {
+    if (!token) throw new Error("Anda harus login.");
+    try {
+      // Kita bungkus updates ke dalam properti 'data' karena ini adalah user_metadata di Supabase
+      const updatedUser = await api.auth.updateUser(token, { data: updates });
+      
+      if (updatedUser) {
+        setUser(updatedUser); // Update state lokal agar UI langsung berubah
+        return { success: true };
+      }
+    } catch (error) {
+      console.error("Update profile error:", error);
+      throw error;
+    }
+  };
+
   return (
-    <UserContext.Provider value={{ user, token, login, logout }}>
+    // JANGAN LUPA MASUKKAN updateProfile KE DALAM VALUE
+    <UserContext.Provider value={{ user, token, login, logout, updateProfile }}>
       {children}
     </UserContext.Provider>
   );
