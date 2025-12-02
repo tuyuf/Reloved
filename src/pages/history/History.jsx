@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { api } from "../../services/api";
 import { formatPrice, formatDate } from "../../lib/format";
 import { useUser } from "../../context/UserContext"; 
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion"; // Import AnimatePresence
+import ReceiptModal from "../../components/ReceiptModal"; // Import Komponen Baru
 
 export default function History() {
   const { user, token } = useUser(); 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedOrder, setSelectedOrder] = useState(null); // State untuk modal
 
   useEffect(() => {
     async function load() {
@@ -21,7 +23,7 @@ export default function History() {
 
       try {
         const data = await api.db.get("orders", {
-            select: "*, order_items(products(name, image_url))",
+            select: "*, order_items(products(name, image_url), price, quantity, size)", // Pastikan field price/qty/size diambil
             user_id: `eq.${user.id}`,
             status: "in.(completed,cancelled)",
             order: "created_at.desc"
@@ -52,6 +54,17 @@ export default function History() {
 
   return (
     <div className="w-full max-w-[1200px] mx-auto pb-20 pt-24 md:pt-12 px-4 sm:px-6">
+      
+      {/* Render Modal jika ada order yang dipilih */}
+      <AnimatePresence>
+        {selectedOrder && (
+          <ReceiptModal 
+            order={selectedOrder} 
+            onClose={() => setSelectedOrder(null)} 
+          />
+        )}
+      </AnimatePresence>
+
       <motion.div 
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -91,8 +104,14 @@ export default function History() {
               <motion.div 
                 key={order.id} 
                 variants={itemVariants}
-                className="group bg-white p-6 rounded-3xl border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all duration-300 flex flex-col md:flex-row items-start md:items-center gap-6"
+                onClick={() => setSelectedOrder(order)} // Trigger Modal saat diklik
+                className="group bg-white p-6 rounded-3xl border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all duration-300 flex flex-col md:flex-row items-start md:items-center gap-6 cursor-pointer relative overflow-hidden"
               >
+                 {/* Tambahkan indikator "Click for details" */}
+                 <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+                 </div>
+
                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shrink-0 transition-transform group-hover:scale-110 ${
                     order.status === 'completed' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'
                  }`}>
