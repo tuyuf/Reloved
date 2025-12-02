@@ -20,23 +20,27 @@ export default function AdminProducts() {
 
   async function loadProducts() {
     setLoading(true);
+    
+    // HAPUS BLOCK 'if (!token)' DISINI.
+    // Biarkan request berjalan menggunakan Anon Key jika token kosong.
+
     try {
-      // Fetch all products
       const data = await api.db.get("products", {
         select: "*",
         order: "created_at.desc"
-      }, token);
+      }, token); // Jika token null, api.js akan otomatis pakai Anon Key
       
       setProducts(data || []);
     } catch (error) {
-      console.error(error);
-      alert("Gagal mengambil data produk");
+      console.error("Load products error:", error);
+      // Jangan alert error jika hanya masalah auth, cukup log saja
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   useEffect(() => {
-    if (token) loadProducts();
+    loadProducts();
   }, [token]);
 
   async function handleDelete(id) {
@@ -44,18 +48,13 @@ export default function AdminProducts() {
     setDeletingId(id);
 
     try {
-      // 1. Delete associated cart items first (Manual cascade via API)
       await api.db.deleteWhere("cart_items", { product_id: `eq.${id}` }, token);
-
-      // 2. Delete the product
       await api.db.delete("products", id, token);
-
       setProducts((prev) => prev.filter((p) => p.id !== id));
       alert("Produk berhasil dihapus.");
     } catch (err) {
       console.error(err);
-      // Basic error handling since we don't have Supabase error codes directly exposed consistently in all fetches
-      alert("Gagal menghapus produk. Pastikan produk tidak terikat dengan pesanan aktif.");
+      alert("Gagal menghapus produk.");
     } finally {
       setDeletingId(null);
     }
@@ -63,7 +62,6 @@ export default function AdminProducts() {
 
   return (
     <div className="space-y-8 pb-20">
-      {/* Header */}
       <div className="flex items-end justify-between border-b border-black/5 pb-6">
         <div>
           <h1 className="text-4xl font-serif text-[#111]">Products</h1>
@@ -77,12 +75,14 @@ export default function AdminProducts() {
         </button>
       </div>
 
-      {/* Table */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-20 text-center text-gray-400 italic font-serif">Loading inventory...</div>
         ) : products.length === 0 ? (
-          <div className="p-20 text-center text-gray-400">Belum ada produk.</div>
+          <div className="p-20 text-center text-gray-400">
+            Belum ada produk. 
+            {!token && <span className="block text-xs mt-2 text-red-400">(Pastikan tabel 'products' memiliki akses Public Read di Supabase)</span>}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">

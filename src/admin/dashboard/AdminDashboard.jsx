@@ -22,11 +22,11 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function loadStats() {
-      // Return early if no token (though AdminLayout protects this, it's safer)
-      if (!token) return;
+      // HAPUS baris ini: if (!token) return;
+      // Agar fungsi tetap jalan sampai 'finally' meskipun admin tidak login sebagai user biasa.
 
       try {
-        // 1. Get Product Count (Fetch IDs only to minimize bandwidth)
+        // 1. Get Product Count
         const products = await api.db.get("products", { select: "id" }, token);
 
         // 2. Get Orders Data
@@ -55,6 +55,7 @@ export default function AdminDashboard() {
       } catch (error) {
         console.error("Dashboard load failed", error);
       } finally {
+        // PENTING: Ini memastikan loading spinner berhenti
         setLoading(false);
       }
     }

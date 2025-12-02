@@ -22,8 +22,9 @@ export default function AdminOrders() {
 
   async function loadOrders() {
     setLoading(true);
-    if (!token) return;
-
+    
+    // HAPUS BLOCK 'if (!token)' DISINI.
+    
     const params = {
         select: `*, order_items (quantity, products (name))`,
         order: "created_at.desc"
@@ -38,8 +39,9 @@ export default function AdminOrders() {
       setOrders(data || []);
     } catch (e) {
       console.error(e);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   useEffect(() => { loadOrders(); }, [activeTab, token]);
@@ -56,7 +58,7 @@ export default function AdminOrders() {
       await api.db.update("orders", orderId, { status: newStatus, ...additionalData }, token);
       loadOrders();
     } catch (e) {
-      alert("Gagal update status");
+      alert("Gagal update status (Mungkin perlu login user/token valid)");
     }
   }
 
@@ -114,6 +116,11 @@ export default function AdminOrders() {
             <p className="text-xs text-gray-400 uppercase tracking-widest">
               In {activeTab === 'All' ? 'all categories' : activeTab} status
             </p>
+            {!token && (
+               <div className="mt-4 p-4 bg-red-50 text-red-600 text-xs rounded font-bold max-w-sm mx-auto">
+                  Note: Anda tidak login sebagai user Supabase. Jika tabel 'orders' dilindungi RLS (Policy), data tidak akan tampil.
+               </div>
+            )}
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
